@@ -8,7 +8,7 @@
     },
     {
       "address": "0x8198f5d8F8CfFE8f9C413d98a0A55aEB8ab9FbB7",
-      "txHash": "0x11dc19c0f4f395e56c2f9c3d4361fd323f304f99ab14105671c5441b8712e6df",
+      "txHash": "0x424851543b9d293846e0e8b0e742dafb75ee70628722066103daa3062154002d",
       "kind": "uups"
     }
   ],
@@ -555,9 +555,9 @@
         }
       }
     },
-    "bde855c076d65533cef6e9f275e91bfea44f612991727473fdd14387c5b1e14f": {
+    "db9149409eccdeb9b9e2e6e58c5fc25ff5c92bb262d33b3be0c86f38e8c012fe": {
       "address": "0x36b58F5C1969B7b6591D752ea6F5486D069010AB",
-      "txHash": "0x319c0b8f6638cd03db0eb8aedacac9763d0f70b9ea1e94d2c6acc19d05fdd998",
+      "txHash": "0xed82759940d2f56f27a039971987b42fecaec8e186c678f19fee67db96fb0ce2",
       "layout": {
         "storage": [
           {
@@ -629,7 +629,7 @@
             "label": "_roleMembers",
             "offset": 0,
             "slot": "251",
-            "type": "t_mapping(t_bytes32,t_struct(AddressSet)2555_storage)",
+            "type": "t_mapping(t_bytes32,t_struct(AddressSet)2666_storage)",
             "contract": "AccessControlEnumerableUpgradeable",
             "src": "@openzeppelin\\contracts-upgradeable\\access\\AccessControlEnumerableUpgradeable.sol:22"
           },
@@ -642,156 +642,244 @@
             "src": "@openzeppelin\\contracts-upgradeable\\access\\AccessControlEnumerableUpgradeable.sol:76"
           },
           {
-            "label": "want",
+            "label": "_paused",
             "offset": 0,
             "slot": "301",
-            "type": "t_address",
-            "contract": "ReaperBaseStrategyv3",
-            "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:20"
+            "type": "t_bool",
+            "contract": "PausableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\security\\PausableUpgradeable.sol:29"
           },
           {
-            "label": "emergencyExit",
-            "offset": 20,
-            "slot": "301",
-            "type": "t_bool",
+            "label": "__gap",
+            "offset": 0,
+            "slot": "302",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "PausableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\security\\PausableUpgradeable.sol:102"
+          },
+          {
+            "label": "want",
+            "offset": 0,
+            "slot": "351",
+            "type": "t_address",
             "contract": "ReaperBaseStrategyv3",
             "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:23"
           },
           {
+            "label": "emergencyExit",
+            "offset": 20,
+            "slot": "351",
+            "type": "t_bool",
+            "contract": "ReaperBaseStrategyv3",
+            "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:26"
+          },
+          {
             "label": "harvestLog",
             "offset": 0,
-            "slot": "302",
-            "type": "t_array(t_struct(Harvest)6733_storage)dyn_storage",
+            "slot": "352",
+            "type": "t_array(t_struct(Harvest)8701_storage)dyn_storage",
             "contract": "ReaperBaseStrategyv3",
-            "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:30"
+            "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:33"
           },
           {
             "label": "harvestLogCadence",
             "offset": 0,
-            "slot": "303",
-            "type": "t_uint256",
-            "contract": "ReaperBaseStrategyv3",
-            "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:31"
-          },
-          {
-            "label": "lastHarvestTimestamp",
-            "offset": 0,
-            "slot": "304",
-            "type": "t_uint256",
-            "contract": "ReaperBaseStrategyv3",
-            "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:32"
-          },
-          {
-            "label": "upgradeProposalTime",
-            "offset": 0,
-            "slot": "305",
+            "slot": "353",
             "type": "t_uint256",
             "contract": "ReaperBaseStrategyv3",
             "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:34"
           },
           {
+            "label": "lastHarvestTimestamp",
+            "offset": 0,
+            "slot": "354",
+            "type": "t_uint256",
+            "contract": "ReaperBaseStrategyv3",
+            "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:35"
+          },
+          {
+            "label": "upgradeProposalTime",
+            "offset": 0,
+            "slot": "355",
+            "type": "t_uint256",
+            "contract": "ReaperBaseStrategyv3",
+            "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:37"
+          },
+          {
             "label": "cascadingAccess",
             "offset": 0,
-            "slot": "306",
+            "slot": "356",
             "type": "t_array(t_bytes32)dyn_storage",
             "contract": "ReaperBaseStrategyv3",
-            "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:54"
+            "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:57"
           },
           {
             "label": "treasury",
             "offset": 0,
-            "slot": "307",
+            "slot": "357",
             "type": "t_address",
             "contract": "ReaperBaseStrategyv3",
-            "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:62"
+            "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:65"
           },
           {
             "label": "vault",
             "offset": 0,
-            "slot": "308",
+            "slot": "358",
             "type": "t_address",
             "contract": "ReaperBaseStrategyv3",
-            "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:63"
+            "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:66"
           },
           {
             "label": "strategistRemitter",
             "offset": 0,
-            "slot": "309",
+            "slot": "359",
             "type": "t_address",
             "contract": "ReaperBaseStrategyv3",
-            "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:64"
+            "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:67"
           },
           {
             "label": "totalFee",
             "offset": 0,
-            "slot": "310",
-            "type": "t_uint256",
-            "contract": "ReaperBaseStrategyv3",
-            "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:90"
-          },
-          {
-            "label": "callFee",
-            "offset": 0,
-            "slot": "311",
-            "type": "t_uint256",
-            "contract": "ReaperBaseStrategyv3",
-            "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:91"
-          },
-          {
-            "label": "treasuryFee",
-            "offset": 0,
-            "slot": "312",
-            "type": "t_uint256",
-            "contract": "ReaperBaseStrategyv3",
-            "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:92"
-          },
-          {
-            "label": "strategistFee",
-            "offset": 0,
-            "slot": "313",
+            "slot": "360",
             "type": "t_uint256",
             "contract": "ReaperBaseStrategyv3",
             "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:93"
           },
           {
-            "label": "securityFee",
+            "label": "callFee",
             "offset": 0,
-            "slot": "314",
+            "slot": "361",
             "type": "t_uint256",
             "contract": "ReaperBaseStrategyv3",
             "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:94"
           },
           {
-            "label": "tshareToWftmPath",
+            "label": "treasuryFee",
             "offset": 0,
-            "slot": "315",
-            "type": "t_array(t_address)dyn_storage",
-            "contract": "ReaperStrategyTombMai",
-            "src": "contracts\\ReaperStrategyTombMai.sol:41"
-          },
-          {
-            "label": "wftmToTombPath",
-            "offset": 0,
-            "slot": "316",
-            "type": "t_array(t_address)dyn_storage",
-            "contract": "ReaperStrategyTombMai",
-            "src": "contracts\\ReaperStrategyTombMai.sol:42"
-          },
-          {
-            "label": "tombToMaiPath",
-            "offset": 0,
-            "slot": "317",
-            "type": "t_array(t_address)dyn_storage",
-            "contract": "ReaperStrategyTombMai",
-            "src": "contracts\\ReaperStrategyTombMai.sol:43"
-          },
-          {
-            "label": "poolId",
-            "offset": 0,
-            "slot": "318",
+            "slot": "362",
             "type": "t_uint256",
-            "contract": "ReaperStrategyTombMai",
-            "src": "contracts\\ReaperStrategyTombMai.sol:49"
+            "contract": "ReaperBaseStrategyv3",
+            "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:95"
+          },
+          {
+            "label": "strategistFee",
+            "offset": 0,
+            "slot": "363",
+            "type": "t_uint256",
+            "contract": "ReaperBaseStrategyv3",
+            "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:96"
+          },
+          {
+            "label": "securityFee",
+            "offset": 0,
+            "slot": "364",
+            "type": "t_uint256",
+            "contract": "ReaperBaseStrategyv3",
+            "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:97"
+          },
+          {
+            "label": "cWant",
+            "offset": 0,
+            "slot": "365",
+            "type": "t_contract(CErc20I)9794",
+            "contract": "ReaperStrategyScreamLeverage",
+            "src": "contracts\\ReaperStrategyScreamLeverage.sol:29"
+          },
+          {
+            "label": "comptroller",
+            "offset": 0,
+            "slot": "366",
+            "type": "t_contract(IComptroller)10140",
+            "contract": "ReaperStrategyScreamLeverage",
+            "src": "contracts\\ReaperStrategyScreamLeverage.sol:37"
+          },
+          {
+            "label": "screamToWftmRoute",
+            "offset": 0,
+            "slot": "367",
+            "type": "t_array(t_address)dyn_storage",
+            "contract": "ReaperStrategyScreamLeverage",
+            "src": "contracts\\ReaperStrategyScreamLeverage.sol:44"
+          },
+          {
+            "label": "wftmToWantRoute",
+            "offset": 0,
+            "slot": "368",
+            "type": "t_array(t_address)dyn_storage",
+            "contract": "ReaperStrategyScreamLeverage",
+            "src": "contracts\\ReaperStrategyScreamLeverage.sol:45"
+          },
+          {
+            "label": "markets",
+            "offset": 0,
+            "slot": "369",
+            "type": "t_array(t_address)dyn_storage",
+            "contract": "ReaperStrategyScreamLeverage",
+            "src": "contracts\\ReaperStrategyScreamLeverage.sol:53"
+          },
+          {
+            "label": "targetLTV",
+            "offset": 0,
+            "slot": "370",
+            "type": "t_uint256",
+            "contract": "ReaperStrategyScreamLeverage",
+            "src": "contracts\\ReaperStrategyScreamLeverage.sol:66"
+          },
+          {
+            "label": "allowedLTVDrift",
+            "offset": 0,
+            "slot": "371",
+            "type": "t_uint256",
+            "contract": "ReaperStrategyScreamLeverage",
+            "src": "contracts\\ReaperStrategyScreamLeverage.sol:67"
+          },
+          {
+            "label": "balanceOfPool",
+            "offset": 0,
+            "slot": "372",
+            "type": "t_uint256",
+            "contract": "ReaperStrategyScreamLeverage",
+            "src": "contracts\\ReaperStrategyScreamLeverage.sol:68"
+          },
+          {
+            "label": "borrowDepth",
+            "offset": 0,
+            "slot": "373",
+            "type": "t_uint256",
+            "contract": "ReaperStrategyScreamLeverage",
+            "src": "contracts\\ReaperStrategyScreamLeverage.sol:69"
+          },
+          {
+            "label": "minWantToLeverage",
+            "offset": 0,
+            "slot": "374",
+            "type": "t_uint256",
+            "contract": "ReaperStrategyScreamLeverage",
+            "src": "contracts\\ReaperStrategyScreamLeverage.sol:70"
+          },
+          {
+            "label": "maxBorrowDepth",
+            "offset": 0,
+            "slot": "375",
+            "type": "t_uint256",
+            "contract": "ReaperStrategyScreamLeverage",
+            "src": "contracts\\ReaperStrategyScreamLeverage.sol:71"
+          },
+          {
+            "label": "minScreamToSell",
+            "offset": 0,
+            "slot": "376",
+            "type": "t_uint256",
+            "contract": "ReaperStrategyScreamLeverage",
+            "src": "contracts\\ReaperStrategyScreamLeverage.sol:72"
+          },
+          {
+            "label": "withdrawSlippageTolerance",
+            "offset": 0,
+            "slot": "377",
+            "type": "t_uint256",
+            "contract": "ReaperStrategyScreamLeverage",
+            "src": "contracts\\ReaperStrategyScreamLeverage.sol:73"
           }
         ],
         "types": {
@@ -807,7 +895,7 @@
             "label": "bytes32[]",
             "numberOfBytes": "32"
           },
-          "t_array(t_struct(Harvest)6733_storage)dyn_storage": {
+          "t_array(t_struct(Harvest)8701_storage)dyn_storage": {
             "label": "struct ReaperBaseStrategyv3.Harvest[]",
             "numberOfBytes": "32"
           },
@@ -827,11 +915,19 @@
             "label": "bytes32",
             "numberOfBytes": "32"
           },
+          "t_contract(CErc20I)9794": {
+            "label": "contract CErc20I",
+            "numberOfBytes": "20"
+          },
+          "t_contract(IComptroller)10140": {
+            "label": "contract IComptroller",
+            "numberOfBytes": "20"
+          },
           "t_mapping(t_address,t_bool)": {
             "label": "mapping(address => bool)",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_bytes32,t_struct(AddressSet)2555_storage)": {
+          "t_mapping(t_bytes32,t_struct(AddressSet)2666_storage)": {
             "label": "mapping(bytes32 => struct EnumerableSetUpgradeable.AddressSet)",
             "numberOfBytes": "32"
           },
@@ -843,19 +939,19 @@
             "label": "mapping(bytes32 => uint256)",
             "numberOfBytes": "32"
           },
-          "t_struct(AddressSet)2555_storage": {
+          "t_struct(AddressSet)2666_storage": {
             "label": "struct EnumerableSetUpgradeable.AddressSet",
             "members": [
               {
                 "label": "_inner",
-                "type": "t_struct(Set)2254_storage",
+                "type": "t_struct(Set)2365_storage",
                 "offset": 0,
                 "slot": "0"
               }
             ],
             "numberOfBytes": "64"
           },
-          "t_struct(Harvest)6733_storage": {
+          "t_struct(Harvest)8701_storage": {
             "label": "struct ReaperBaseStrategyv3.Harvest",
             "members": [
               {
@@ -891,7 +987,7 @@
             ],
             "numberOfBytes": "64"
           },
-          "t_struct(Set)2254_storage": {
+          "t_struct(Set)2365_storage": {
             "label": "struct EnumerableSetUpgradeable.Set",
             "members": [
               {

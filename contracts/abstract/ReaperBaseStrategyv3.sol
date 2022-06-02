@@ -10,6 +10,8 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 
+import "hardhat/console.sol";
+
 abstract contract ReaperBaseStrategyv3 is IStrategy, UUPSUpgradeable, AccessControlEnumerableUpgradeable, PausableUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -152,10 +154,14 @@ abstract contract ReaperBaseStrategyv3 is IStrategy, UUPSUpgradeable, AccessCont
      *      is deducted up-front.
      */
     function withdraw(uint256 _amount) external override returns (uint256 loss) {
+        console.log("base strategy withdraw");
+        console.log("_amount: ", _amount);
+        console.log("balanceOf(): ", balanceOf());
         require(msg.sender == vault);
         require(_amount != 0);
-        require(_amount <= balanceOf());
-
+        // require(_amount <= balanceOf());
+        console.log("base strategy after require");
+        
         uint256 withdrawFee = (_amount * securityFee) / PERCENT_DIVISOR;
         _amount -= withdrawFee;
 
