@@ -272,7 +272,6 @@ contract ReaperVaultV2 is ERC20, Ownable, ReentrancyGuard {
      * tokens are burned in the process.
      */
     function withdraw(uint256 _shares) public nonReentrant {
-        console.log("vault withdraw");
         require(_shares > 0, "please provide amount");
         uint256 value = (balance() * _shares) / totalSupply();
         _burn(msg.sender, _shares);

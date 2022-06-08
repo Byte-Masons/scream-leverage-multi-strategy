@@ -127,7 +127,7 @@ describe('Vaults', function () {
   });
 
   describe('Deploying the vault and strategy', function () {
-    xit('should initiate vault with a 0 balance', async function () {
+    it('should initiate vault with a 0 balance', async function () {
       const totalBalance = await vault.balance();
       const pricePerFullShare = await vault.getPricePerFullShare();
       expect(totalBalance).to.equal(0);
@@ -135,21 +135,17 @@ describe('Vaults', function () {
     });
   });
 
-  xdescribe('Access control tests', function () {
+  describe('Access control tests', function () {
     it('unassignedRole has no privileges', async function () {
       await expect(strategy.connect(unassignedRole).updateHarvestLogCadence(10)).to.be.reverted;
 
       await expect(strategy.connect(unassignedRole).setEmergencyExit()).to.be.reverted;
-
-      await expect(strategy.connect(unassignedRole).updateSecurityFee(0)).to.be.reverted;
     });
 
     it('strategist has right privileges', async function () {
       await expect(strategy.connect(strategist).updateHarvestLogCadence(10)).to.not.be.reverted;
 
       await expect(strategy.connect(strategist).setEmergencyExit()).to.be.reverted;
-
-      await expect(strategy.connect(strategist).updateSecurityFee(0)).to.be.reverted;
     });
 
     it('guardian has right privileges', async function () {
@@ -162,8 +158,6 @@ describe('Vaults', function () {
       await expect(strategy.connect(guardian).updateHarvestLogCadence(10)).to.not.be.reverted;
 
       await expect(strategy.connect(guardian).setEmergencyExit()).to.not.be.reverted;
-
-      await expect(strategy.connect(guardian).updateSecurityFee(0)).to.be.reverted;
     });
 
     it('admin has right privileges', async function () {
@@ -176,8 +170,6 @@ describe('Vaults', function () {
       await expect(strategy.connect(admin).updateHarvestLogCadence(10)).to.not.be.reverted;
 
       await expect(strategy.connect(admin).setEmergencyExit()).to.not.be.reverted;
-
-      await expect(strategy.connect(admin).updateSecurityFee(0)).to.be.reverted;
     });
 
     it('super-admin/owner has right privileges', async function () {
@@ -190,13 +182,11 @@ describe('Vaults', function () {
       await expect(strategy.connect(superAdmin).updateHarvestLogCadence(10)).to.not.be.reverted;
 
       await expect(strategy.connect(superAdmin).setEmergencyExit()).to.not.be.reverted;
-
-      await expect(strategy.connect(superAdmin).updateSecurityFee(0)).to.not.be.reverted;
     });
   });
 
   describe('Vault Tests', function () {
-    xit('should allow deposits and account for them correctly', async function () {
+    it('should allow deposits and account for them correctly', async function () {
       const userBalance = await want.balanceOf(wantHolderAddr);
       const vaultBalance = await vault.balance();
       const depositAmount = toWantUnit('10');
@@ -209,7 +199,7 @@ describe('Vaults', function () {
       expect(depositAmount).to.be.closeTo(newVaultBalance, allowedInaccuracy);
     });
 
-    xit('should mint user their pool share', async function () {
+    it('should mint user their pool share', async function () {
       const userBalance = await want.balanceOf(wantHolderAddr);
       const depositAmount = toWantUnit('10');
       await vault.connect(wantHolder).deposit(depositAmount);
@@ -244,20 +234,17 @@ describe('Vaults', function () {
       const newUserVaultBalance = await vault.balanceOf(wantHolderAddr);
       const userBalanceAfterWithdraw = await want.balanceOf(wantHolderAddr);
 
-      const securityFee = 10;
-      const percentDivisor = 10000;
-      const withdrawFee = depositAmount.mul(securityFee).div(percentDivisor);
-      const expectedBalance = userBalance.sub(withdrawFee);
+      const expectedBalance = userBalance;
       const smallDifference = depositAmount.div(200);
-      const isSmallBalanceDifference = expectedBalance.sub(userBalanceAfterWithdraw) < smallDifference;
+      const isSmallBalanceDifference = expectedBalance.sub(userBalanceAfterWithdraw).lt(smallDifference);
       console.log(`expectedBalance: ${expectedBalance}`);
       console.log(`userBalanceAfterWithdraw: ${userBalanceAfterWithdraw}`);
       console.log(`expectedBalance.sub(userBalanceAfterWithdraw): ${expectedBalance.sub(userBalanceAfterWithdraw)}`);
       console.log(`smallDifference: ${smallDifference}`);
-      // expect(isSmallBalanceDifference).to.equal(true);
+      expect(isSmallBalanceDifference).to.equal(true);
     });
 
-    xit('should allow small withdrawal', async function () {
+    it('should allow small withdrawal', async function () {
       const userBalance = await want.balanceOf(wantHolderAddr);
       const depositAmount = toWantUnit('0.0000001');
       await vault.connect(wantHolder).deposit(depositAmount);
@@ -272,18 +259,19 @@ describe('Vaults', function () {
       const newUserVaultBalance = await vault.balanceOf(wantHolderAddr);
       const userBalanceAfterWithdraw = await want.balanceOf(wantHolderAddr);
 
-      const securityFee = 10;
-      const percentDivisor = 10000;
-      const withdrawFee = depositAmount.mul(securityFee).div(percentDivisor);
-      const expectedBalance = userBalance.sub(withdrawFee);
-      const smallDifference = expectedBalance.div(200);
-      const isSmallBalanceDifference = expectedBalance.sub(userBalanceAfterWithdraw) < smallDifference;
-      // expect(isSmallBalanceDifference).to.equal(true);
+      const expectedBalance = userBalance.sub(ownerDepositAmount);
+      const smallDifference = depositAmount.div(200);
+      const isSmallBalanceDifference = expectedBalance.sub(userBalanceAfterWithdraw).lt(smallDifference);
+      console.log(`expectedBalance: ${expectedBalance}`);
+      console.log(`userBalanceAfterWithdraw: ${userBalanceAfterWithdraw}`);
+      console.log(`expectedBalance.sub(userBalanceAfterWithdraw): ${expectedBalance.sub(userBalanceAfterWithdraw)}`);
+      console.log(`smallDifference: ${smallDifference}`);
+      expect(isSmallBalanceDifference).to.equal(true);
     });
 
-    xit('should handle small deposit + withdraw', async function () {
+    it('should handle small deposit + withdraw', async function () {
       const userBalance = await want.balanceOf(wantHolderAddr);
-      const depositAmount = toWantUnit('0.0000000000001');
+      const depositAmount = toWantUnit('0.000001');
       await vault.connect(wantHolder).deposit(depositAmount);
       await strategy.harvest();
 
@@ -291,16 +279,14 @@ describe('Vaults', function () {
       const newUserVaultBalance = await vault.balanceOf(wantHolderAddr);
       const userBalanceAfterWithdraw = await want.balanceOf(wantHolderAddr);
 
-      const securityFee = 10;
-      const percentDivisor = 10000;
-      const withdrawFee = (depositAmount * securityFee) / percentDivisor;
-      const expectedBalance = userBalance.sub(withdrawFee);
-      const isSmallBalanceDifference = expectedBalance.sub(userBalanceAfterWithdraw) < 200;
+      const expectedBalance = userBalance;
+      const smallDifference = depositAmount.div(200);
+      const isSmallBalanceDifference = expectedBalance.sub(userBalanceAfterWithdraw).lt(smallDifference);
       expect(isSmallBalanceDifference).to.equal(true);
     });
   });
 
-  xdescribe('Strategy', function () {
+  describe('Strategy', function () {
     it('should be able to harvest', async function () {
       await vault.connect(wantHolder).deposit(toWantUnit('1000'));
       await strategy.harvest();
@@ -341,7 +327,7 @@ describe('Vaults', function () {
     });
   });
 
-  xdescribe('Vault<>Strat accounting', function () {
+  describe('Vault<>Strat accounting', function () {
     it('Strat gets more money when it flows in', async function () {
       await vault.connect(wantHolder).deposit(toWantUnit('500'));
       await strategy.harvest();
@@ -349,15 +335,24 @@ describe('Vaults', function () {
       let vaultBalance = await want.balanceOf(vault.address);
       expect(vaultBalance).to.equal(ethers.utils.parseEther('50'));
       let stratBalance = await strategy.balanceOf();
-      expect(stratBalance).to.equal(ethers.utils.parseEther('450'));
+      let expectedStrategyBalance = ethers.utils.parseEther('450');
+      let smallDifference = expectedStrategyBalance.div(1e12);
+      console.log(`smallDifference ${smallDifference}`);
+      let isSmallBalanceDifference = expectedStrategyBalance.sub(stratBalance).lt(smallDifference);
+      expect(isSmallBalanceDifference).to.equal(true);
 
       await vault.connect(wantHolder).deposit(toWantUnit('500'));
       await strategy.harvest();
       await moveTimeForward(3600);
       vaultBalance = await want.balanceOf(vault.address);
+      console.log(`vaultBalance ${vaultBalance}`);
       expect(vaultBalance).to.be.gte(ethers.utils.parseEther('100'));
       stratBalance = await strategy.balanceOf();
-      expect(stratBalance).to.be.gte(ethers.utils.parseEther('900'));
+      expectedStrategyBalance = ethers.utils.parseEther('900');
+      smallDifference = expectedStrategyBalance.div(1e12);
+      console.log(`smallDifference ${smallDifference}`);
+      isSmallBalanceDifference = expectedStrategyBalance.sub(stratBalance).lt(smallDifference);
+      expect(isSmallBalanceDifference).to.equal(true);
     });
 
     it('Vault pulls funds from strat as needed', async function () {
@@ -367,7 +362,10 @@ describe('Vaults', function () {
       let vaultBalance = await want.balanceOf(vault.address);
       expect(vaultBalance).to.equal(ethers.utils.parseEther('100'));
       let stratBalance = await strategy.balanceOf();
-      expect(stratBalance).to.equal(ethers.utils.parseEther('900'));
+      let expectedStrategyBalance = ethers.utils.parseEther('900');
+      let smallDifference = expectedStrategyBalance.div(1e12);
+      let isSmallBalanceDifference = expectedStrategyBalance.sub(stratBalance).lt(smallDifference);
+      expect(isSmallBalanceDifference).to.equal(true);
 
       await vault.updateStrategyAllocBPS(strategy.address, 7000);
       await strategy.harvest();
@@ -375,7 +373,10 @@ describe('Vaults', function () {
       vaultBalance = await want.balanceOf(vault.address);
       expect(vaultBalance).to.be.gte(ethers.utils.parseEther('300'));
       stratBalance = await strategy.balanceOf();
-      expect(stratBalance).to.be.gte(ethers.utils.parseEther('700'));
+      expectedStrategyBalance = ethers.utils.parseEther('700');
+      smallDifference = expectedStrategyBalance.div(1e12);
+      isSmallBalanceDifference = expectedStrategyBalance.sub(stratBalance).lt(smallDifference);
+      expect(isSmallBalanceDifference).to.equal(true);
 
       await vault.connect(wantHolder).deposit(toWantUnit('100'));
       await strategy.harvest();
@@ -383,11 +384,14 @@ describe('Vaults', function () {
       vaultBalance = await want.balanceOf(vault.address);
       expect(vaultBalance).to.be.gte(ethers.utils.parseEther('330'));
       stratBalance = await strategy.balanceOf();
-      expect(stratBalance).to.be.gte(ethers.utils.parseEther('770'));
+      expectedStrategyBalance = ethers.utils.parseEther('770');
+      smallDifference = expectedStrategyBalance.div(1e12);
+      isSmallBalanceDifference = expectedStrategyBalance.sub(stratBalance).lt(smallDifference);
+      expect(isSmallBalanceDifference).to.equal(true);
     });
   });
 
-  xdescribe('Emergency scenarios', function () {
+  describe('Emergency scenarios', function () {
     it('Vault should handle emergency shutdown', async function () {
       await vault.connect(wantHolder).deposit(toWantUnit('1000'));
       await strategy.harvest();
@@ -395,14 +399,19 @@ describe('Vaults', function () {
       let vaultBalance = await want.balanceOf(vault.address);
       expect(vaultBalance).to.equal(ethers.utils.parseEther('100'));
       let stratBalance = await strategy.balanceOf();
-      expect(stratBalance).to.equal(ethers.utils.parseEther('900'));
+      expectedStrategyBalance = ethers.utils.parseEther('900');
+      smallDifference = expectedStrategyBalance.div(1e12);
+      isSmallBalanceDifference = expectedStrategyBalance.sub(stratBalance).lt(smallDifference);
+      expect(isSmallBalanceDifference).to.equal(true);
 
       await vault.setEmergencyShutdown(true);
       await strategy.harvest();
       vaultBalance = await want.balanceOf(vault.address);
       expect(vaultBalance).to.be.gte(ethers.utils.parseEther('1000'));
       stratBalance = await strategy.balanceOf();
-      expect(stratBalance).to.equal(ethers.utils.parseEther('0'));
+      smallDifference = vaultBalance.div(1e12);
+      isSmallBalanceDifference = stratBalance.lt(smallDifference);
+      expect(isSmallBalanceDifference).to.equal(true);
     });
 
     it('Strategy should handle emergency exit', async function () {
@@ -412,14 +421,19 @@ describe('Vaults', function () {
       let vaultBalance = await want.balanceOf(vault.address);
       expect(vaultBalance).to.equal(ethers.utils.parseEther('100'));
       let stratBalance = await strategy.balanceOf();
-      expect(stratBalance).to.equal(ethers.utils.parseEther('900'));
+      let expectedStrategyBalance = ethers.utils.parseEther('900');
+      let smallDifference = expectedStrategyBalance.div(1e12);
+      let isSmallBalanceDifference = expectedStrategyBalance.sub(stratBalance).lt(smallDifference);
+      expect(isSmallBalanceDifference).to.equal(true);
 
       await vault.setEmergencyShutdown(true);
       await strategy.harvest();
       vaultBalance = await want.balanceOf(vault.address);
       expect(vaultBalance).to.be.gte(ethers.utils.parseEther('1000'));
       stratBalance = await strategy.balanceOf();
-      expect(stratBalance).to.equal(ethers.utils.parseEther('0'));
+      smallDifference = vaultBalance.div(1e12);
+      isSmallBalanceDifference = stratBalance.lt(smallDifference);
+      expect(isSmallBalanceDifference).to.equal(true);
     });
   });
 });

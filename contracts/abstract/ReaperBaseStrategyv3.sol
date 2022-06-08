@@ -71,12 +71,9 @@ abstract contract ReaperBaseStrategyv3 is IStrategy, UUPSUpgradeable, AccessCont
      * {MAX_FEE} - Maximum fee allowed by the strategy. Hard-capped at 10%.
      * {STRATEGIST_MAX_FEE} - Maximum strategist fee allowed by the strategy (as % of treasury fee).
      *                        Hard-capped at 50%
-     * {MAX_SECURITY_FEE} - Maximum security fee charged on withdrawal to prevent
-     *                      flash deposit/harvest attacks.
      */
     uint256 public constant MAX_FEE = 1000;
     uint256 public constant STRATEGIST_MAX_FEE = 5000;
-    uint256 public constant MAX_SECURITY_FEE = 10;
 
     /**
      * @dev Distribution of fees earned, expressed as % of the profit from each harvest.
@@ -86,15 +83,11 @@ abstract contract ReaperBaseStrategyv3 is IStrategy, UUPSUpgradeable, AccessCont
      * {callFee} - Percent of the totalFee reserved for the harvester (1000 = 10% of total fee: 0.45% by default)
      * {treasuryFee} - Percent of the totalFee taken by maintainers of the software (9000 = 90% of total fee: 4.05% by default)
      * {strategistFee} - Percent of the treasuryFee taken by strategist (2500 = 25% of treasury fee: 1.0125% by default)
-     *
-     * {securityFee} - Fee taxed when a user withdraws funds. Taken to prevent flash deposit/harvest attacks.
-     * These funds are redistributed to stakers in the pool.
      */
     uint256 public totalFee;
     uint256 public callFee;
     uint256 public treasuryFee;
     uint256 public strategistFee;
-    uint256 public securityFee;
 
     /**
      * {TotalFeeUpdated} Event that is fired each time the total fee is updated.
@@ -125,7 +118,6 @@ abstract contract ReaperBaseStrategyv3 is IStrategy, UUPSUpgradeable, AccessCont
         callFee = 1000;
         treasuryFee = 9000;
         strategistFee = 2500;
-        securityFee = 10;
 
         vault = _vault;
         treasury = _feeRemitters[0];
@@ -154,16 +146,8 @@ abstract contract ReaperBaseStrategyv3 is IStrategy, UUPSUpgradeable, AccessCont
      *      is deducted up-front.
      */
     function withdraw(uint256 _amount) external override returns (uint256 loss) {
-        console.log("base strategy withdraw");
-        console.log("_amount: ", _amount);
-        console.log("balanceOf(): ", balanceOf());
         require(msg.sender == vault);
         require(_amount != 0);
-        // require(_amount <= balanceOf());
-        console.log("base strategy after require");
-        
-        uint256 withdrawFee = (_amount * securityFee) / PERCENT_DIVISOR;
-        _amount -= withdrawFee;
 
         uint256 amountFreed = 0;
         (amountFreed, loss) = _liquidatePosition(_amount);
@@ -299,12 +283,6 @@ abstract contract ReaperBaseStrategyv3 is IStrategy, UUPSUpgradeable, AccessCont
         strategistFee = _strategistFee;
         emit FeesUpdated(callFee, treasuryFee, strategistFee);
         return true;
-    }
-
-    function updateSecurityFee(uint256 _securityFee) external {
-        _atLeastRole(DEFAULT_ADMIN_ROLE);
-        require(_securityFee <= MAX_SECURITY_FEE);
-        securityFee = _securityFee;
     }
 
     /**
