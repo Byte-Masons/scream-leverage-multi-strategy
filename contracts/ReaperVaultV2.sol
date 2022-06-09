@@ -231,6 +231,17 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
     }
 
     /**
+     * @notice The amount of assets that the Vault would exchange for the amount of shares provided,
+     * in an ideal scenario where all the conditions are met.
+     * @param shares The amount of shares to convert to underlying assets
+     */
+    function convertToAssets(uint256 shares) public view returns (uint256) {
+        uint256 _totalSupply = totalSupply();
+        if (_totalSupply == 0) return 0;
+        return shares * totalAssets() / _totalSupply;
+    }
+
+    /**
      * @dev Function for various UIs to display the current value of one of our yield tokens.
      * Returns an uint256 with 18 decimals of how much underlying asset one vault share represents.
      */

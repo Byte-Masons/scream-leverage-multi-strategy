@@ -285,7 +285,7 @@ describe('Vaults', function () {
       expect(isSmallBalanceDifference).to.equal(true);
     });
 
-    it('should be able to convert assets in to amount of shares', async function () {
+    xit('should be able to convert assets in to amount of shares', async function () {
       const depositAmount = toWantUnit('100');
       await vault.connect(wantHolder).deposit(depositAmount);
 
@@ -305,6 +305,22 @@ describe('Vaults', function () {
       const vaultBalance = await vault.balanceOf(owner.address);
       console.log(`vaultBalance: ${vaultBalance}`);
       expect(shares).to.equal(vaultBalance);
+    });
+
+    it('should be able to convert shares in to amount of assets', async function () {
+      const shareAmount = toWantUnit('100');
+      let assets = await vault.convertToAssets(shareAmount);
+      expect(assets).to.equal(0);
+      console.log(`assets: ${assets}`);
+
+      const depositAmount = toWantUnit('1337');
+      await vault.connect(wantHolder).deposit(depositAmount);
+
+      await want.connect(wantHolder).transfer(vault.address, depositAmount);
+
+      assets = await vault.convertToAssets(shareAmount);
+      console.log(`assets: ${assets}`);
+      expect(assets).to.equal(shareAmount.mul(2));
     });
   });
 
