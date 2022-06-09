@@ -161,13 +161,13 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
             return -int256(strategies[stratAddr].allocated);
         }
 
-        uint256 stratMaxAllocation = (strategies[stratAddr].allocBPS * balance()) / PERCENT_DIVISOR;
+        uint256 stratMaxAllocation = (strategies[stratAddr].allocBPS * totalAssets()) / PERCENT_DIVISOR;
         uint256 stratCurrentAllocation = strategies[stratAddr].allocated;
 
         if (stratCurrentAllocation > stratMaxAllocation) {
             return -int256(stratCurrentAllocation - stratMaxAllocation);
         } else if (stratCurrentAllocation < stratMaxAllocation) {
-            uint256 vaultMaxAllocation = (totalAllocBPS * balance()) / PERCENT_DIVISOR;
+            uint256 vaultMaxAllocation = (totalAllocBPS * totalAssets()) / PERCENT_DIVISOR;
             uint256 vaultCurrentAllocation = totalAllocated;
 
             if (vaultCurrentAllocation >= vaultMaxAllocation) {
@@ -214,7 +214,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * It takes into account the vault contract balance, and the balance deployed across
      * all the strategies.
      */
-    function balance() public view returns (uint256) {
+    function totalAssets() public view returns (uint256) {
         return IERC20Metadata(asset).balanceOf(address(this)) + totalAllocated;
     }
 
@@ -223,7 +223,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * Returns an uint256 with 18 decimals of how much underlying asset one vault share represents.
      */
     function getPricePerFullShare() public view returns (uint256) {
-        return totalSupply() == 0 ? 10**decimals() : balance() * 10**decimals() / totalSupply();
+        return totalSupply() == 0 ? 10**decimals() : totalAssets() * 10**decimals() / totalSupply();
     }
 
     /**
@@ -242,7 +242,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
     function deposit(uint256 _amount) public nonReentrant {
         require(!emergencyShutdown);
         require(_amount != 0, "please provide amount");
-        uint256 _pool = balance();
+        uint256 _pool = totalAssets();
         require(_pool + _amount <= tvlCap, "vault is full!");
 
         uint256 _before = IERC20Metadata(asset).balanceOf(address(this));
@@ -274,7 +274,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      */
     function withdraw(uint256 _shares) public nonReentrant {
         require(_shares > 0, "please provide amount");
-        uint256 value = (balance() * _shares) / totalSupply();
+        uint256 value = (totalAssets() * _shares) / totalSupply();
         _burn(msg.sender, _shares);
 
         if (value > IERC20Metadata(asset).balanceOf(address(this))) {

@@ -128,7 +128,7 @@ describe('Vaults', function () {
 
   describe('Deploying the vault and strategy', function () {
     it('should initiate vault with a 0 balance', async function () {
-      const totalBalance = await vault.balance();
+      const totalBalance = await vault.totalAssets();
       const pricePerFullShare = await vault.getPricePerFullShare();
       expect(totalBalance).to.equal(0);
       expect(pricePerFullShare).to.equal(ethers.utils.parseEther('1'));
@@ -188,12 +188,12 @@ describe('Vaults', function () {
   describe('Vault Tests', function () {
     it('should allow deposits and account for them correctly', async function () {
       const userBalance = await want.balanceOf(wantHolderAddr);
-      const vaultBalance = await vault.balance();
+      const vaultBalance = await vault.totalAssets();
       const depositAmount = toWantUnit('10');
       await vault.connect(wantHolder).deposit(depositAmount);
       await strategy.harvest();
 
-      const newVaultBalance = await vault.balance();
+      const newVaultBalance = await vault.totalAssets();
       const newUserBalance = await want.balanceOf(wantHolderAddr);
       const allowedInaccuracy = depositAmount.div(200);
       expect(depositAmount).to.be.closeTo(newVaultBalance, allowedInaccuracy);
@@ -309,7 +309,7 @@ describe('Vaults', function () {
 
       await vault.connect(wantHolder).deposit(depositAmount);
       await strategy.harvest();
-      const initialVaultBalance = await vault.balance();
+      const initialVaultBalance = await vault.totalAssets();
 
       await strategy.updateHarvestLogCadence(timeToSkip / 2);
 
@@ -319,7 +319,7 @@ describe('Vaults', function () {
         await strategy.harvest();
       }
 
-      const finalVaultBalance = await vault.balance();
+      const finalVaultBalance = await vault.totalAssets();
       expect(finalVaultBalance).to.be.gt(initialVaultBalance);
 
       const averageAPR = await strategy.averageAPRAcrossLastNHarvests(numHarvests);
