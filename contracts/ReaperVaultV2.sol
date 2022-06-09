@@ -242,6 +242,19 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
     }
 
     /**
+     * @notice Maximum amount of the underlying asset that can be deposited into the Vault for the receiver, 
+     * through a deposit call.
+     * @param receiver The depositor, unused in this case but here as part of the ERC4626 spec.
+     */
+    function maxDeposit(address receiver) external view returns (uint256) {
+        uint256 totalAssets = totalAssets();
+        if (totalAssets > tvlCap) {
+            return 0;
+        }
+        return tvlCap - totalAssets;
+    }
+
+    /**
      * @dev Function for various UIs to display the current value of one of our yield tokens.
      * Returns an uint256 with 18 decimals of how much underlying asset one vault share represents.
      */
