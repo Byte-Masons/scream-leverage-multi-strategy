@@ -251,6 +251,16 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
     }
 
     /**
+     * @notice Allows an on-chain or off-chain user to simulate the effects of their deposit at the current block, 
+     * given current on-chain conditions. 
+     * @param assets The ammount of assets to deposit
+     */
+    function previewDeposit(uint256 assets) external view returns (uint256) {
+        return convertToShares(assets);
+    }
+
+
+    /**
      * @dev Function for various UIs to display the current value of one of our yield tokens.
      * Returns an uint256 with 18 decimals of how much underlying asset one vault share represents.
      */
