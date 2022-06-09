@@ -35,7 +35,6 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
     // Ordering that `withdraw` uses to determine which strategies to pull funds from
     address[] public withdrawalQueue;
 
-    uint256 public depositFee;
     uint256 public constant PERCENT_DIVISOR = 10000;
     uint256 public tvlCap;
 
@@ -93,20 +92,17 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * @param _asset the asset to maximize.
      * @param _name the name of the vault asset.
      * @param _symbol the symbol of the vault asset.
-     * @param _depositFee one-time fee taken from deposits to this vault (in basis points)
      * @param _tvlCap initial deposit cap for scaling TVL safely
      */
     constructor(
         address _asset,
         string memory _name,
         string memory _symbol,
-        uint256 _depositFee,
         uint256 _tvlCap
     ) ERC20(string(_name), string(_symbol)) {
         asset = _asset;
         constructionTime = block.timestamp;
         lastReport = block.timestamp;
-        depositFee = _depositFee;
         tvlCap = _tvlCap;
     }
 
@@ -285,12 +281,11 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
         IERC20Metadata(asset).safeTransferFrom(msg.sender, address(this), _amount);
         uint256 _after = IERC20Metadata(asset).balanceOf(address(this));
         _amount = _after - _before;
-        uint256 _amountAfterDeposit = (_amount * (PERCENT_DIVISOR - depositFee)) / PERCENT_DIVISOR;
         uint256 shares = 0;
         if (totalSupply() == 0) {
-            shares = _amountAfterDeposit;
+            shares = _amount;
         } else {
-            shares = (_amountAfterDeposit * totalSupply()) / _pool;
+            shares = (_amount * totalSupply()) / _pool;
         }
         _mint(msg.sender, shares);
         incrementDeposits(_amount);
@@ -431,10 +426,6 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
     function updateWithdrawMaxLoss(uint256 _withdrawMaxLoss) external onlyOwner {
         require(_withdrawMaxLoss <= PERCENT_DIVISOR);
         withdrawMaxLoss = _withdrawMaxLoss;
-    }
-
-    function updateDepositFee(uint256 fee) public onlyOwner {
-        depositFee = fee;
     }
 
     /**

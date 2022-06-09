@@ -104,7 +104,7 @@ describe('Vaults', function () {
     Want = await ethers.getContractFactory('@openzeppelin/contracts/token/ERC20/ERC20.sol:ERC20');
 
     //deploy contracts
-    vault = await Vault.deploy(wantAddress, 'TOMB-MAI Tomb Crypt', 'rf-TOMB-MAI', 0, ethers.constants.MaxUint256);
+    vault = await Vault.deploy(wantAddress, 'TOMB-MAI Tomb Crypt', 'rf-TOMB-MAI', ethers.constants.MaxUint256);
 
     strategy = await hre.upgrades.deployProxy(
       Strategy,
@@ -126,7 +126,7 @@ describe('Vaults', function () {
     await want.connect(wantHolder).approve(vault.address, ethers.constants.MaxUint256);
   });
 
-  xdescribe('Deploying the vault and strategy', function () {
+  describe('Deploying the vault and strategy', function () {
     it('should initiate vault with a 0 balance', async function () {
       const totalBalance = await vault.totalAssets();
       const pricePerFullShare = await vault.getPricePerFullShare();
@@ -135,7 +135,7 @@ describe('Vaults', function () {
     });
   });
 
-  xdescribe('Access control tests', function () {
+  describe('Access control tests', function () {
     it('unassignedRole has no privileges', async function () {
       await expect(strategy.connect(unassignedRole).updateHarvestLogCadence(10)).to.be.reverted;
 
@@ -186,7 +186,7 @@ describe('Vaults', function () {
   });
 
   describe('Vault Tests', function () {
-    xit('should allow deposits and account for them correctly', async function () {
+    it('should allow deposits and account for them correctly', async function () {
       const userBalance = await want.balanceOf(wantHolderAddr);
       const vaultBalance = await vault.totalAssets();
       const depositAmount = toWantUnit('10');
@@ -199,7 +199,7 @@ describe('Vaults', function () {
       expect(depositAmount).to.be.closeTo(newVaultBalance, allowedInaccuracy);
     });
 
-    xit('should mint user their pool share', async function () {
+    it('should mint user their pool share', async function () {
       const userBalance = await want.balanceOf(wantHolderAddr);
       const depositAmount = toWantUnit('10');
       await vault.connect(wantHolder).deposit(depositAmount);
@@ -224,7 +224,7 @@ describe('Vaults', function () {
       expect(afterOwnerVaultBalance).to.equal(0);
     });
 
-    xit('should allow withdrawals', async function () {
+    it('should allow withdrawals', async function () {
       const userBalance = await want.balanceOf(wantHolderAddr);
       const depositAmount = toWantUnit('100');
       await vault.connect(wantHolder).deposit(depositAmount);
@@ -244,7 +244,7 @@ describe('Vaults', function () {
       expect(isSmallBalanceDifference).to.equal(true);
     });
 
-    xit('should allow small withdrawal', async function () {
+    it('should allow small withdrawal', async function () {
       const userBalance = await want.balanceOf(wantHolderAddr);
       const depositAmount = toWantUnit('0.0000001');
       await vault.connect(wantHolder).deposit(depositAmount);
@@ -269,7 +269,7 @@ describe('Vaults', function () {
       expect(isSmallBalanceDifference).to.equal(true);
     });
 
-    xit('should handle small deposit + withdraw', async function () {
+    it('should handle small deposit + withdraw', async function () {
       const userBalance = await want.balanceOf(wantHolderAddr);
       const depositAmount = toWantUnit('0.000001');
       await vault.connect(wantHolder).deposit(depositAmount);
@@ -285,7 +285,7 @@ describe('Vaults', function () {
       expect(isSmallBalanceDifference).to.equal(true);
     });
 
-    xit('should be able to convert assets in to amount of shares', async function () {
+    it('should be able to convert assets in to amount of shares', async function () {
       const depositAmount = toWantUnit('100');
       await vault.connect(wantHolder).deposit(depositAmount);
 
@@ -307,7 +307,7 @@ describe('Vaults', function () {
       expect(shares).to.equal(vaultBalance);
     });
 
-    xit('should be able to convert shares in to amount of assets', async function () {
+    it('should be able to convert shares in to amount of assets', async function () {
       const shareAmount = toWantUnit('100');
       let assets = await vault.convertToAssets(shareAmount);
       expect(assets).to.equal(0);
@@ -345,7 +345,7 @@ describe('Vaults', function () {
     });
   });
 
-  xdescribe('Strategy', function () {
+  describe('Strategy', function () {
     it('should be able to harvest', async function () {
       await vault.connect(wantHolder).deposit(toWantUnit('1000'));
       await strategy.harvest();
@@ -386,7 +386,7 @@ describe('Vaults', function () {
     });
   });
 
-  xdescribe('Vault<>Strat accounting', function () {
+  describe('Vault<>Strat accounting', function () {
     it('Strat gets more money when it flows in', async function () {
       await vault.connect(wantHolder).deposit(toWantUnit('500'));
       await strategy.harvest();
@@ -450,7 +450,7 @@ describe('Vaults', function () {
     });
   });
 
-  xdescribe('Emergency scenarios', function () {
+  describe('Emergency scenarios', function () {
     it('Vault should handle emergency shutdown', async function () {
       await vault.connect(wantHolder).deposit(toWantUnit('1000'));
       await strategy.harvest();
