@@ -3,6 +3,7 @@
 pragma solidity ^0.8.0;
 
 import "./interfaces/IStrategy.sol";
+import "./interfaces/IERC4626.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -17,7 +18,7 @@ import "hardhat/console.sol";
  * This is the contract that receives funds and that users interface with.
  * The yield optimizing strategy itself is implemented in a separate 'Strategy.sol' contract.
  */
-contract ReaperVaultV2 is ERC20, Ownable, ReentrancyGuard {
+contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20Metadata;
 
     struct StrategyParams {
@@ -45,8 +46,8 @@ contract ReaperVaultV2 is ERC20, Ownable, ReentrancyGuard {
     uint256 public constructionTime;
     bool public emergencyShutdown;
 
-    // The token the vault accepts and looks to maximize.
-    IERC20Metadata public token;
+    // The asset the vault accepts and looks to maximize.
+    address public immutable asset;
 
     // Max slippage(loss) allowed when withdrawing, in BPS (0.01%)
     uint256 withdrawMaxLoss = 1;
@@ -86,23 +87,23 @@ contract ReaperVaultV2 is ERC20, Ownable, ReentrancyGuard {
     event WithdrawalsIncremented(address user, uint256 amount, uint256 total);
 
     /**
-     * @dev Initializes the vault's own 'RF' token.
-     * This token is minted when someone does a deposit. It is burned in order
+     * @dev Initializes the vault's own 'RF' asset.
+     * This asset is minted when someone does a deposit. It is burned in order
      * to withdraw the corresponding portion of the underlying assets.
-     * @param _token the token to maximize.
-     * @param _name the name of the vault token.
-     * @param _symbol the symbol of the vault token.
+     * @param _asset the asset to maximize.
+     * @param _name the name of the vault asset.
+     * @param _symbol the symbol of the vault asset.
      * @param _depositFee one-time fee taken from deposits to this vault (in basis points)
      * @param _tvlCap initial deposit cap for scaling TVL safely
      */
     constructor(
-        address _token,
+        address _asset,
         string memory _name,
         string memory _symbol,
         uint256 _depositFee,
         uint256 _tvlCap
     ) ERC20(string(_name), string(_symbol)) {
-        token = IERC20Metadata(_token);
+        asset = _asset;
         constructionTime = block.timestamp;
         lastReport = block.timestamp;
         depositFee = _depositFee;
@@ -114,7 +115,7 @@ contract ReaperVaultV2 is ERC20, Ownable, ReentrancyGuard {
         require(_strategy != address(0));
         require(strategies[_strategy].activation == 0);
         require(address(this) == IStrategy(_strategy).vault());
-        require(address(token) == IStrategy(_strategy).want());
+        require(asset == IStrategy(_strategy).want());
         require(_allocBPS + totalAllocBPS <= PERCENT_DIVISOR);
 
         strategies[_strategy] = StrategyParams({
@@ -175,7 +176,7 @@ contract ReaperVaultV2 is ERC20, Ownable, ReentrancyGuard {
 
             uint256 available = stratMaxAllocation - stratCurrentAllocation;
             available = Math.min(available, vaultMaxAllocation - vaultCurrentAllocation);
-            available = Math.min(available, token.balanceOf(address(this)));
+            available = Math.min(available, IERC20Metadata(asset).balanceOf(address(this)));
 
             return int256(available);
         } else {
@@ -209,12 +210,12 @@ contract ReaperVaultV2 is ERC20, Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev It calculates the total underlying value of {token} held by the system.
+     * @dev It calculates the total underlying value of {asset} held by the system.
      * It takes into account the vault contract balance, and the balance deployed across
      * all the strategies.
      */
     function balance() public view returns (uint256) {
-        return token.balanceOf(address(this)) + totalAllocated;
+        return IERC20Metadata(asset).balanceOf(address(this)) + totalAllocated;
     }
 
     /**
@@ -229,7 +230,7 @@ contract ReaperVaultV2 is ERC20, Ownable, ReentrancyGuard {
      * @dev A helper function to call deposit() with all the sender's funds.
      */
     function depositAll() external {
-        deposit(token.balanceOf(msg.sender));
+        deposit(IERC20Metadata(asset).balanceOf(msg.sender));
     }
 
     /**
@@ -244,9 +245,9 @@ contract ReaperVaultV2 is ERC20, Ownable, ReentrancyGuard {
         uint256 _pool = balance();
         require(_pool + _amount <= tvlCap, "vault is full!");
 
-        uint256 _before = token.balanceOf(address(this));
-        token.safeTransferFrom(msg.sender, address(this), _amount);
-        uint256 _after = token.balanceOf(address(this));
+        uint256 _before = IERC20Metadata(asset).balanceOf(address(this));
+        IERC20Metadata(asset).safeTransferFrom(msg.sender, address(this), _amount);
+        uint256 _after = IERC20Metadata(asset).balanceOf(address(this));
         _amount = _after - _before;
         uint256 _amountAfterDeposit = (_amount * (PERCENT_DIVISOR - depositFee)) / PERCENT_DIVISOR;
         uint256 shares = 0;
@@ -268,7 +269,7 @@ contract ReaperVaultV2 is ERC20, Ownable, ReentrancyGuard {
 
     /**
      * @dev Function to exit the system. The vault will withdraw the required tokens
-     * from the strategies and pay up the token holder. A proportional number of IOU
+     * from the strategies and pay up the asset holder. A proportional number of IOU
      * tokens are burned in the process.
      */
     function withdraw(uint256 _shares) public nonReentrant {
@@ -276,12 +277,12 @@ contract ReaperVaultV2 is ERC20, Ownable, ReentrancyGuard {
         uint256 value = (balance() * _shares) / totalSupply();
         _burn(msg.sender, _shares);
 
-        if (value > token.balanceOf(address(this))) {
+        if (value > IERC20Metadata(asset).balanceOf(address(this))) {
             uint256 totalLoss = 0;
             uint256 queueLength = withdrawalQueue.length;
             uint256 vaultBalance = 0;
             for (uint256 i = 0; i < queueLength; i++) {
-                vaultBalance = token.balanceOf(address(this));
+                vaultBalance = IERC20Metadata(asset).balanceOf(address(this));
                 if (value <= vaultBalance) {
                     break;
                 }
@@ -294,7 +295,7 @@ contract ReaperVaultV2 is ERC20, Ownable, ReentrancyGuard {
 
                 uint256 remaining = value - vaultBalance;
                 uint256 loss = IStrategy(stratAddr).withdraw(Math.min(remaining, strategyBal));
-                uint256 actualWithdrawn = token.balanceOf(address(this)) - vaultBalance;
+                uint256 actualWithdrawn = IERC20Metadata(asset).balanceOf(address(this)) - vaultBalance;
 
                 // Withdrawer incurs any losses from withdrawing as reported by strat
                 if (loss != 0) {
@@ -307,7 +308,7 @@ contract ReaperVaultV2 is ERC20, Ownable, ReentrancyGuard {
                 totalAllocated -= actualWithdrawn;
             }
 
-            vaultBalance = token.balanceOf(address(this));
+            vaultBalance = IERC20Metadata(asset).balanceOf(address(this));
             if (value > vaultBalance) {
                 value = vaultBalance;
             }
@@ -315,7 +316,7 @@ contract ReaperVaultV2 is ERC20, Ownable, ReentrancyGuard {
             require(totalLoss <= ((value + totalLoss) * withdrawMaxLoss) / PERCENT_DIVISOR);
         }
 
-        token.safeTransfer(msg.sender, value);
+        IERC20Metadata(asset).safeTransfer(msg.sender, value);
         incrementWithdrawals(value);
     }
 
@@ -376,9 +377,9 @@ contract ReaperVaultV2 is ERC20, Ownable, ReentrancyGuard {
         }
 
         if (credit > freeWantInStrat) {
-            token.safeTransfer(stratAddr, credit - freeWantInStrat);
+            IERC20Metadata(asset).safeTransfer(stratAddr, credit - freeWantInStrat);
         } else if (credit < freeWantInStrat) {
-            token.safeTransferFrom(stratAddr, address(this), freeWantInStrat - credit);
+            IERC20Metadata(asset).safeTransferFrom(stratAddr, address(this), freeWantInStrat - credit);
         }
 
         strategies[stratAddr].lastReport = block.timestamp;
@@ -453,10 +454,10 @@ contract ReaperVaultV2 is ERC20, Ownable, ReentrancyGuard {
 
     /**
      * @dev Rescues random funds stuck that the strat can't handle.
-     * @param _token address of the token to rescue.
+     * @param _token address of the asset to rescue.
      */
     function inCaseTokensGetStuck(address _token) external onlyOwner {
-        require(_token != address(token), "!token");
+        require(_token != asset, "!asset");
 
         uint256 amount = IERC20Metadata(_token).balanceOf(address(this));
         IERC20Metadata(_token).safeTransfer(msg.sender, amount);
@@ -464,9 +465,9 @@ contract ReaperVaultV2 is ERC20, Ownable, ReentrancyGuard {
 
     /**
      * @dev Overrides the default 18 decimals for the vault ERC20 to
-     * match the same decimals as the underlying token used
+     * match the same decimals as the underlying asset used
      */
     function decimals() public view override returns (uint8) {
-        return token.decimals();
+        return IERC20Metadata(asset).decimals();
     }
 }
