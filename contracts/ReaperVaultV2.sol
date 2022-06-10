@@ -242,7 +242,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * through a deposit call.
      * @param receiver The depositor, unused in this case but here as part of the ERC4626 spec.
      */
-    function maxDeposit(address receiver) external view returns (uint256) {
+    function maxDeposit(address receiver) public view returns (uint256) {
         uint256 totalAssets = totalAssets();
         if (totalAssets > tvlCap) {
             return 0;
@@ -253,12 +253,53 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
     /**
      * @notice Allows an on-chain or off-chain user to simulate the effects of their deposit at the current block, 
      * given current on-chain conditions. 
-     * @param assets The ammount of assets to deposit
+     * @param assets The amount of assets to deposit
      */
     function previewDeposit(uint256 assets) external view returns (uint256) {
         return convertToShares(assets);
     }
 
+    /**
+     * @notice Maximum amount of shares that can be minted from the Vault for the receiver, through a mint call.
+     * @param receiver The minter, unused in this case but here as part of the ERC4626 spec.
+     */
+    function maxMint(address receiver) public view virtual returns (uint256) {
+        return convertToShares(maxDeposit(address(0)));
+    }
+
+    /**
+     * @notice Allows an on-chain or off-chain user to simulate the effects of their mint at the current block, 
+     * given current on-chain conditions.
+     * @param shares The amount of shares to mint.
+     */
+    function previewMint(uint256 shares) external view returns (uint256) {
+        uint256 assets = convertToAssets(shares);
+        if (assets == 0 && totalAssets() == 0) return shares;
+        return assets;
+    }
+
+    /**
+     * @notice Mints exactly shares Vault shares to receiver by depositing amount of underlying tokens.
+     * @param shares The amount of shares to mint.
+     * @param receiver The receiver of the minted shares.
+     */
+    function mint(uint256 shares, address receiver) public returns (uint256) {
+        require(!emergencyShutdown);
+        require(shares != 0, "please provide amount");
+        uint256 assets = convertToAssets(shares);
+        uint256 _pool = totalAssets();
+        require(_pool + assets <= tvlCap, "vault is full!");
+
+        if (totalAssets() == 0) assets = shares;
+
+        IERC20Metadata(asset).safeTransferFrom(msg.sender, address(this), assets);
+
+        _mint(receiver, shares);
+        incrementDeposits(assets);
+        emit Deposit(msg.sender, receiver, assets, shares);
+
+        return assets;
+    }
 
     /**
      * @dev Function for various UIs to display the current value of one of our yield tokens.
@@ -298,6 +339,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
         }
         _mint(receiver, shares);
         incrementDeposits(assets);
+        emit Deposit(msg.sender, receiver, assets, shares);
     }
 
     /**
@@ -312,10 +354,10 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * from the strategies and pay up the asset holder. A proportional number of IOU
      * tokens are burned in the process.
      */
-    function withdraw(uint256 _shares) public nonReentrant {
-        require(_shares > 0, "please provide amount");
-        uint256 value = (totalAssets() * _shares) / totalSupply();
-        _burn(msg.sender, _shares);
+    function withdraw(uint256 shares) public nonReentrant {
+        require(shares > 0, "please provide amount");
+        uint256 value = (totalAssets() * shares) / totalSupply();
+        _burn(msg.sender, shares);
 
         if (value > IERC20Metadata(asset).balanceOf(address(this))) {
             uint256 totalLoss = 0;

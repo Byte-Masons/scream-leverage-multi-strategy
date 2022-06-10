@@ -343,6 +343,111 @@ describe('Vaults', function () {
       maxDeposit = await vault.maxDeposit(wantHolderAddr);
       expect(maxDeposit).to.equal(0);
     });
+
+    xit('can previewDeposit', async function () {
+      let depositAmount = toWantUnit('137');
+      await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
+
+      depositAmount = toWantUnit('44');
+      let depositPreview = await vault.connect(wantHolder).previewDeposit(depositAmount);
+      let vaultBalance = await vault.balanceOf(wantHolderAddr);
+      await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
+      let vaultBalanceAfter = await vault.balanceOf(wantHolderAddr);
+      let balanceIncrease = vaultBalanceAfter.sub(vaultBalance);
+      expect(depositPreview).to.equal(balanceIncrease);
+
+      await want.connect(wantHolder).transfer(vault.address, toWantUnit('11346'));
+
+      depositAmount = toWantUnit('130');
+      depositPreview = await vault.connect(wantHolder).previewDeposit(depositAmount);
+      vaultBalance = await vault.balanceOf(wantHolderAddr);
+      await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
+      vaultBalanceAfter = await vault.balanceOf(wantHolderAddr);
+      balanceIncrease = vaultBalanceAfter.sub(vaultBalance);
+      expect(depositPreview).to.equal(balanceIncrease);
+    });
+
+    xit('maxMint returns the max amount of shares that can be minted', async function () {
+      let maxMint = await vault.connect(wantHolder).maxMint(ethers.constants.AddressZero);
+      expect(maxMint).to.equal(ethers.constants.MaxUint256);
+
+      let tvlCap = toWantUnit('50');
+      await vault.updateTvlCap(tvlCap);
+      maxMint = await vault.connect(wantHolder).maxMint(ethers.constants.AddressZero);
+      expect(maxMint).to.equal(tvlCap);
+
+      let depositAmount = toWantUnit('35');
+      await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
+      maxMint = await vault.connect(wantHolder).maxMint(ethers.constants.AddressZero);
+      expect(maxMint).to.equal(tvlCap.sub(depositAmount));
+
+      // Change the price per share
+      const transferAmount = toWantUnit('11346');
+      await want.connect(wantHolder).transfer(vault.address, transferAmount);
+      depositAmount = toWantUnit('15');
+      await vault.updateTvlCap(tvlCap.add(transferAmount).add(depositAmount));
+      const depositPreview = await vault.connect(wantHolder).previewDeposit(depositAmount);
+      await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
+      maxMint = await vault.connect(wantHolder).maxMint(ethers.constants.AddressZero);
+      expect(maxMint).to.equal(depositPreview);
+    });
+
+    xit('previewMint returns the amount of asset taken on a mint', async function () {
+      let mintAmount = toWantUnit('55');
+      let mintPreview = await vault.connect(wantHolder).previewMint(mintAmount);
+      expect(mintPreview).to.equal(mintAmount);
+
+      let userBalance = await want.balanceOf(wantHolderAddr);
+      await vault.connect(wantHolder).mint(mintAmount, wantHolderAddr);
+      let userBalanceAfterMint = await want.balanceOf(wantHolderAddr);
+      expect(userBalanceAfterMint).to.equal(userBalance.sub(mintPreview));
+
+      // Change the price per share
+      const transferAmount = toWantUnit('11346');
+      await want.connect(wantHolder).transfer(vault.address, transferAmount);
+
+      mintAmount = toWantUnit('13');
+      mintPreview = await vault.connect(wantHolder).previewMint(mintAmount);
+      userBalance = await want.balanceOf(wantHolderAddr);
+      await vault.connect(wantHolder).mint(mintAmount, wantHolderAddr);
+      userBalanceAfterMint = await want.balanceOf(wantHolderAddr);
+      expect(userBalanceAfterMint).to.equal(userBalance.sub(mintPreview));
+    });
+
+    it('mint creates the correct amount of shares', async function () {
+      let mintAmount = toWantUnit('55');
+      let userBalance = await want.balanceOf(wantHolderAddr);
+      // let shareBalance = await vault.balanceOf(wantHolderAddr);
+      await vault.connect(wantHolder).mint(mintAmount, wantHolderAddr);
+      let shareBalanceAfterMint = await vault.balanceOf(wantHolderAddr);
+      let userBalanceAfterMint = await want.balanceOf(wantHolderAddr);
+      expect(userBalanceAfterMint).to.equal(userBalance.sub(mintAmount));
+      expect(shareBalanceAfterMint).to.equal(mintAmount);
+
+      // Change the price per share
+      const transferAmount = toWantUnit('11346');
+      await want.connect(wantHolder).transfer(vault.address, transferAmount);
+
+      // Ensure it mints expected amount of shares with different price per share
+      mintAmount = toWantUnit('11');
+      let shareBalance = await vault.balanceOf(wantHolderAddr);
+      await vault.connect(wantHolder).mint(mintAmount, wantHolderAddr);
+      shareBalanceAfterMint = await vault.balanceOf(wantHolderAddr);
+      expect(shareBalanceAfterMint).to.equal(shareBalance.add(mintAmount));
+
+      // Ensure deposit and mint are equivalent
+      const depositAmount = toWantUnit('56');
+      shareBalance = await vault.balanceOf(wantHolderAddr);
+      await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
+      const shareBalanceAfterDeposit = await vault.balanceOf(wantHolderAddr);
+      const depositShareIncrease = shareBalanceAfterDeposit.sub(shareBalance);
+      userBalance = await want.balanceOf(wantHolderAddr);
+      await vault.connect(wantHolder).mint(depositShareIncrease, wantHolderAddr);
+      userBalanceAfterMint = await want.balanceOf(wantHolderAddr);
+      const mintedAssets = userBalance.sub(userBalanceAfterMint);
+      const allowedInaccuracy = 10;
+      expect(depositAmount).to.be.closeTo(mintedAssets, allowedInaccuracy);
+    });
   });
 
   xdescribe('Strategy', function () {
@@ -414,7 +519,7 @@ describe('Vaults', function () {
       expect(isSmallBalanceDifference).to.equal(true);
     });
 
-    it('Vault pulls funds from strat as needed', async function () {
+    xit('Vault pulls funds from strat as needed', async function () {
       await vault.connect(wantHolder).deposit(toWantUnit('1000'), wantHolderAddr);
       await strategy.harvest();
       await moveTimeForward(3600);
