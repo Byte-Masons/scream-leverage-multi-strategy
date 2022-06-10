@@ -272,7 +272,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * @dev A helper function to call deposit() with all the sender's funds.
      */
     function depositAll() external {
-        deposit(IERC20Metadata(asset).balanceOf(msg.sender));
+        deposit(IERC20Metadata(asset).balanceOf(msg.sender), msg.sender);
     }
 
     /**
@@ -281,24 +281,23 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * @notice the _before and _after variables are used to account properly for
      * 'burn-on-transaction' tokens.
      */
-    function deposit(uint256 _amount) public nonReentrant {
+    function deposit(uint256 assets, address receiver) public nonReentrant returns (uint256 shares) {
         require(!emergencyShutdown);
-        require(_amount != 0, "please provide amount");
+        require(assets != 0, "please provide amount");
         uint256 _pool = totalAssets();
-        require(_pool + _amount <= tvlCap, "vault is full!");
+        require(_pool + assets <= tvlCap, "vault is full!");
 
         uint256 _before = IERC20Metadata(asset).balanceOf(address(this));
-        IERC20Metadata(asset).safeTransferFrom(msg.sender, address(this), _amount);
+        IERC20Metadata(asset).safeTransferFrom(msg.sender, address(this), assets);
         uint256 _after = IERC20Metadata(asset).balanceOf(address(this));
-        _amount = _after - _before;
-        uint256 shares = 0;
+        assets = _after - _before;
         if (totalSupply() == 0) {
-            shares = _amount;
+            shares = assets;
         } else {
-            shares = (_amount * totalSupply()) / _pool;
+            shares = (assets * totalSupply()) / _pool;
         }
-        _mint(msg.sender, shares);
-        incrementDeposits(_amount);
+        _mint(receiver, shares);
+        incrementDeposits(assets);
     }
 
     /**

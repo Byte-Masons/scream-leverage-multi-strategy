@@ -9,7 +9,7 @@ interface IERC4626 {
     function convertToAssets(uint256 shares) external view returns (uint256 assets);
     function maxDeposit(address receiver) external view returns (uint256 maxAssets);
     function previewDeposit(uint256 assets) external view returns (uint256 shares);
-    // function deposit(uint256 assets, address receiver) external returns (uint256 shares);
+    function deposit(uint256 assets, address receiver) external returns (uint256 shares);
     // function maxMint(address receiver) external view returns (uint256 maxShares);
     // function previewMint(uint256 shares) external view returns (uint256 assets);
     // function mint(uint256 shares, address receiver) external returns (uint256 assets);
