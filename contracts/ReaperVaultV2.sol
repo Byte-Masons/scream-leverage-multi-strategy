@@ -170,7 +170,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
             shares = (assets * totalSupply()) / _pool;
         }
         _mint(receiver, shares);
-        incrementDeposits(assets);
+        incrementDeposits(assets, receiver);
         emit Deposit(msg.sender, receiver, assets, shares);
     }
 
@@ -210,7 +210,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
         IERC20Metadata(asset).safeTransferFrom(msg.sender, address(this), assets);
 
         _mint(receiver, shares);
-        incrementDeposits(assets);
+        incrementDeposits(assets, receiver);
         emit Deposit(msg.sender, receiver, assets, shares);
 
         return assets;
@@ -299,7 +299,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
         }
 
         IERC20Metadata(asset).safeTransfer(receiver, assets);
-        incrementWithdrawals(assets);
+        incrementWithdrawals(assets, owner);
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
         return assets;
     }
@@ -577,27 +577,27 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
     }
 
     /**
-     * @notice increases user's cumulative deposits
-     * @param amount number of tokens being deposited
+     * @notice Increases user's cumulative deposits.
+     * @param amount Number of tokens being deposited.
+     * @param receiver The receiver of the minted shares.
      */
-    function incrementDeposits(uint256 amount) internal returns (bool) {
-        uint256 initial = cumulativeDeposits[tx.origin];
+    function incrementDeposits(uint256 amount, address receiver) internal {
+        uint256 initial = cumulativeDeposits[receiver];
         uint256 newTotal = initial + amount;
-        cumulativeDeposits[tx.origin] = newTotal;
-        emit DepositsIncremented(tx.origin, amount, newTotal);
-        return true;
+        cumulativeDeposits[receiver] = newTotal;
+        emit DepositsIncremented(receiver, amount, newTotal);
     }
 
     /**
      * @notice increases user's cumulative withdrawals
-     * @param amount number of tokens being withdrawn
+     * @param amount number of tokens being withdrawn.
+     * @param owner The owner of the shares withdrawn.
      */
-    function incrementWithdrawals(uint256 amount) internal returns (bool) {
-        uint256 initial = cumulativeWithdrawals[tx.origin];
+    function incrementWithdrawals(uint256 amount, address owner) internal {
+        uint256 initial = cumulativeWithdrawals[owner];
         uint256 newTotal = initial + amount;
-        cumulativeWithdrawals[tx.origin] = newTotal;
-        emit WithdrawalsIncremented(tx.origin, amount, newTotal);
-        return true;
+        cumulativeWithdrawals[owner] = newTotal;
+        emit WithdrawalsIncremented(owner, amount, newTotal);
     }
 
     /**
