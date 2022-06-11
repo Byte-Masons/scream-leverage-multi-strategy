@@ -14,7 +14,7 @@ interface IVault {
 
     function getPricePerFullShare() external view returns (uint256);
 
-    function strategies(address _strategy) external view returns (StrategyParams memory);
+    function strategies(address strategy) external view returns (StrategyParams memory);
 
     /**
      * @notice Called by a strategy to determine the amount of capital that the vault is
@@ -30,7 +30,7 @@ interface IVault {
      * Strategy. Therefore, this function will be called by BaseStrategy to
      * make sure the integration is correct.
      */
-    function report(int256 _roi, uint256 _reayment) external returns (uint256);
+    function report(int256 roi, uint256 repayment) external returns (uint256);
 
     /**
      * This function should only be used in the scenario where the Strategy is
@@ -42,5 +42,5 @@ interface IVault {
      * market conditions leading to losses, or an imminent failure in an
      * external dependency.
      */
-    function revokeStrategy(address _strategy) external;
+    function revokeStrategy(address strategy) external;
 }

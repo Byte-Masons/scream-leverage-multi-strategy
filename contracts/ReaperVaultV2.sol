@@ -14,7 +14,7 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 import "hardhat/console.sol";
 
 /**
- * @dev Implementation of a vault to deposit funds for yield optimizing.
+ * @notice Implementation of a vault to deposit funds for yield optimizing.
  * This is the contract that receives funds and that users interface with.
  * The yield optimizing strategy itself is implemented in a separate 'Strategy.sol' contract.
  */
@@ -52,28 +52,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
     uint256 withdrawMaxLoss = 1;
 
     /**
-     * + WEBSITE DISCLAIMER +
-     * While we have taken precautionary measures to protect our users,
-     * it is imperative that you read, understand and agree to the disclaimer below:
-     *
-     * Using our platform may involve financial risk of loss.
-     * Never invest more than what you can afford to lose.
-     * Never invest in a Reaper Vault with tokens you don't trust.
-     * Never invest in a Reaper Vault with tokens whose rules for minting you don’t agree with.
-     * Ensure the accuracy of the contracts for the tokens in the Reaper Vault.
-     * Ensure the accuracy of the contracts for the Reaper Vault and Strategy you are depositing in.
-     * Check our documentation regularly for additional disclaimers and security assessments.
-     * ...and of course: DO YOUR OWN RESEARCH!!!
-     *
-     * By accepting these terms, you agree that Byte Masons, Fantom.Farm, or any parties
-     * affiliated with the deployment and management of these vaults or their attached strategies
-     * are not liable for any financial losses you might incur as a direct or indirect
-     * result of investing in any of the pools on the platform.
-     */
-    mapping(address => bool) public hasReadAndAcceptedTerms;
-
-    /**
-     * @dev simple mappings used to determine PnL denominated in LP tokens,
+     * @notice simple mappings used to determine PnL denominated in LP tokens,
      * as well as keep a generalized history of a user's protocol usage.
      */
     mapping(address => uint256) public cumulativeDeposits;
@@ -86,7 +65,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
     event WithdrawalsIncremented(address user, uint256 amount, uint256 total);
 
     /**
-     * @dev Initializes the vault's own 'RF' asset.
+     * @notice Initializes the vault's own 'RF' asset.
      * This asset is minted when someone does a deposit. It is burned in order
      * to withdraw the corresponding portion of the underlying assets.
      * @param _asset the asset to maximize.
@@ -106,107 +85,8 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
         tvlCap = _tvlCap;
     }
 
-    function addStrategy(address _strategy, uint256 _allocBPS) external onlyOwner {
-        require(!emergencyShutdown);
-        require(_strategy != address(0));
-        require(strategies[_strategy].activation == 0);
-        require(address(this) == IStrategy(_strategy).vault());
-        require(asset == IStrategy(_strategy).want());
-        require(_allocBPS + totalAllocBPS <= PERCENT_DIVISOR);
-
-        strategies[_strategy] = StrategyParams({
-            activation: block.timestamp,
-            allocBPS: _allocBPS,
-            allocated: 0,
-            gains: 0,
-            losses: 0,
-            lastReport: block.timestamp
-        });
-
-        totalAllocBPS += _allocBPS;
-        withdrawalQueue.push(_strategy);
-    }
-
-    function updateStrategyAllocBPS(address _strategy, uint256 _allocBPS) external onlyOwner {
-        require(strategies[_strategy].activation != 0);
-        totalAllocBPS -= strategies[_strategy].allocBPS;
-        strategies[_strategy].allocBPS = _allocBPS;
-        totalAllocBPS += _allocBPS;
-        require(totalAllocBPS <= PERCENT_DIVISOR);
-    }
-
-    function revokeStrategy(address _strategy) external {
-        require(msg.sender == owner() || msg.sender == _strategy);
-        if (strategies[_strategy].allocBPS == 0) {
-            return;
-        }
-
-        totalAllocBPS -= strategies[_strategy].allocBPS;
-        strategies[_strategy].allocBPS = 0;
-    }
-
     /**
-     * @notice Called by a strategy to determine the amount of capital that the vault is
-     * able to provide it. A positive amount means that vault has excess capital to provide
-     * the strategy, while a negative amount means that the strategy has a balance owing to
-     * the vault.
-     */
-    function availableCapital() public view returns (int256) {
-        address stratAddr = msg.sender;
-        if (totalAllocBPS == 0 || emergencyShutdown) {
-            return -int256(strategies[stratAddr].allocated);
-        }
-
-        uint256 stratMaxAllocation = (strategies[stratAddr].allocBPS * totalAssets()) / PERCENT_DIVISOR;
-        uint256 stratCurrentAllocation = strategies[stratAddr].allocated;
-
-        if (stratCurrentAllocation > stratMaxAllocation) {
-            return -int256(stratCurrentAllocation - stratMaxAllocation);
-        } else if (stratCurrentAllocation < stratMaxAllocation) {
-            uint256 vaultMaxAllocation = (totalAllocBPS * totalAssets()) / PERCENT_DIVISOR;
-            uint256 vaultCurrentAllocation = totalAllocated;
-
-            if (vaultCurrentAllocation >= vaultMaxAllocation) {
-                return 0;
-            }
-
-            uint256 available = stratMaxAllocation - stratCurrentAllocation;
-            available = Math.min(available, vaultMaxAllocation - vaultCurrentAllocation);
-            available = Math.min(available, IERC20Metadata(asset).balanceOf(address(this)));
-
-            return int256(available);
-        } else {
-            return 0;
-        }
-    }
-
-    // Updates the withdrawalQueue to match the addresses and order specified.
-    function setWithdrawalQueue(address[] calldata _withdrawalQueue) external onlyOwner {
-        uint256 queueLength = _withdrawalQueue.length;
-        require(queueLength != 0);
-
-        delete withdrawalQueue;
-        for (uint256 i = 0; i < queueLength; i++) {
-            address strategy = _withdrawalQueue[i];
-            StrategyParams storage params = strategies[strategy];
-            require(params.activation != 0);
-            withdrawalQueue.push(strategy);
-        }
-    }
-
-    /**
-     * @dev Gives user access to the client
-     * @notice this does not affect vault permissions, and is read from client-side
-     */
-    function agreeToTerms() public returns (bool) {
-        require(!hasReadAndAcceptedTerms[msg.sender], "you have already accepted the terms");
-        hasReadAndAcceptedTerms[msg.sender] = true;
-        emit TermsAccepted(msg.sender);
-        return true;
-    }
-
-    /**
-     * @dev It calculates the total underlying value of {asset} held by the system.
+     * @notice It calculates the total underlying value of {asset} held by the system.
      * It takes into account the vault contract balance, and the balance deployed across
      * all the strategies.
      */
@@ -260,17 +140,19 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev A helper function to call deposit() with all the sender's funds.
+     * @notice A helper function to call deposit() with all the sender's funds.
      */
     function depositAll() external {
         deposit(IERC20Metadata(asset).balanceOf(msg.sender), msg.sender);
     }
 
     /**
-     * @dev The entrypoint of funds into the system. People deposit with this function
+     * @notice The entrypoint of funds into the system. People deposit with this function
      * into the vault.
-     * @notice the _before and _after variables are used to account properly for
+     * the _before and _after variables are used to account properly for
      * 'burn-on-transaction' tokens.
+     * @param assets The amount of assets to deposit
+     * @param receiver The receiver of the minted shares
      */
     function deposit(uint256 assets, address receiver) public nonReentrant returns (uint256 shares) {
         require(!emergencyShutdown);
@@ -334,6 +216,11 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
         return assets;
     }
 
+    /**
+     * @notice Maximum amount of the underlying asset that can be withdrawn from the owner balance in the Vault,
+     * through a withdraw call.
+     * @param owner The owner of the shares to withdraw.
+     */
     function maxWithdraw(address owner) external view returns (uint256) {
         return convertToAssets(balanceOf(owner));
     }
@@ -349,6 +236,12 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
         return shares;
     }
 
+    /**
+     * @notice Burns shares from owner and sends exactly assets of underlying tokens to receiver.
+     * @param assets The amount of assets to withdraw.
+     * @param receiver The receiver of the withdrawn assets.
+     * @param owner The owner of the shares to withdraw.
+     */
     function withdraw(uint256 assets, address receiver, address owner) external returns (uint256 shares) {
         require(assets > 0, "please provide amount");
         shares = convertToShares(assets);
@@ -356,6 +249,13 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
         return shares;
     }
 
+    /**
+     * @notice Helper function used by both withdraw and redeem to withdraw assets.
+     * @param assets The amount of assets to withdraw.
+     * @param shares The amount of shares to burn.
+     * @param receiver The receiver of the withdrawn assets.
+     * @param owner The owner of the shares to withdraw.
+     */
     function _withdraw(uint256 assets, uint256 shares, address receiver, address owner) internal returns (uint256) {
         _burn(owner, shares);
 
@@ -404,25 +304,36 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
         return assets;
     }
 
+    /**
+     * @notice Maximum amount of Vault shares that can be redeemed from the owner balance in the Vault, 
+     * through a redeem call.
+     * @param owner The owner of the shares to redeem.
+     */
     function maxRedeem(address owner) external view returns (uint256) {
         return balanceOf(owner);
     }
 
+    /**
+     * @notice Allows an on-chain or off-chain user to simulate the effects of their redeemption at the current block,
+     * given current on-chain conditions.
+     * @param shares The amount of shares to redeem.
+     */
     function previewRedeem(uint256 shares) external view returns (uint256) {
         return convertToAssets(shares);
     }
 
     /**
-     * @dev A helper function to call withdraw() with all the sender's funds.
+     * @notice A helper function to call redeem() with all the sender's funds.
      */
     function redeemAll() external {
         redeem(balanceOf(msg.sender), msg.sender, msg.sender);
     }
 
     /**
-     * @dev Function to exit the system. The vault will withdraw the required tokens
-     * from the strategies and pay up the asset holder. A proportional number of IOU
-     * tokens are burned in the process.
+     * @notice Burns exactly shares from owner and sends assets of underlying tokens to receiver.
+     * @param shares The amount of shares to redeem.
+     * @param receiver The receiver of the redeemed assets.
+     * @param owner The owner of the shares to redeem.
      */
     function redeem(uint256 shares, address receiver, address owner) public nonReentrant returns (uint256 assets) {
         require(shares > 0, "please provide amount");
@@ -431,13 +342,123 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev Function for various UIs to display the current value of one of our yield tokens.
+     * @notice Adds a new strategy to the vault with a given allocation amount in basis points.
+     * @param strategy The strategy to add.
+     * @param allocBPS The strategy allocation in basis points
+     */
+    function addStrategy(address strategy, uint256 allocBPS) external onlyOwner {
+        require(!emergencyShutdown);
+        require(strategy != address(0));
+        require(strategies[strategy].activation == 0);
+        require(address(this) == IStrategy(strategy).vault());
+        require(asset == IStrategy(strategy).want());
+        require(allocBPS + totalAllocBPS <= PERCENT_DIVISOR);
+
+        strategies[strategy] = StrategyParams({
+            activation: block.timestamp,
+            allocBPS: allocBPS,
+            allocated: 0,
+            gains: 0,
+            losses: 0,
+            lastReport: block.timestamp
+        });
+
+        totalAllocBPS += allocBPS;
+        withdrawalQueue.push(strategy);
+    }
+
+    /**
+     * @notice Updates the allocation points for a given strategy.
+     * @param strategy The strategy to update.
+     * @param allocBPS The strategy allocation in basis points
+     */
+    function updateStrategyAllocBPS(address strategy, uint256 allocBPS) external onlyOwner {
+        require(strategies[strategy].activation != 0);
+        totalAllocBPS -= strategies[strategy].allocBPS;
+        strategies[strategy].allocBPS = allocBPS;
+        totalAllocBPS += allocBPS;
+        require(totalAllocBPS <= PERCENT_DIVISOR);
+    }
+
+    /**
+     * @notice Removes any allocation to a given strategy.
+     * @param strategy The strategy to revoke.
+     */
+    function revokeStrategy(address strategy) external {
+        require(msg.sender == owner() || msg.sender == strategy);
+        if (strategies[strategy].allocBPS == 0) {
+            return;
+        }
+
+        totalAllocBPS -= strategies[strategy].allocBPS;
+        strategies[strategy].allocBPS = 0;
+    }
+
+    /**
+     * @notice Called by a strategy to determine the amount of capital that the vault is
+     * able to provide it. A positive amount means that vault has excess capital to provide
+     * the strategy, while a negative amount means that the strategy has a balance owing to
+     * the vault.
+     */
+    function availableCapital() public view returns (int256) {
+        address stratAddr = msg.sender;
+        if (totalAllocBPS == 0 || emergencyShutdown) {
+            return -int256(strategies[stratAddr].allocated);
+        }
+
+        uint256 stratMaxAllocation = (strategies[stratAddr].allocBPS * totalAssets()) / PERCENT_DIVISOR;
+        uint256 stratCurrentAllocation = strategies[stratAddr].allocated;
+
+        if (stratCurrentAllocation > stratMaxAllocation) {
+            return -int256(stratCurrentAllocation - stratMaxAllocation);
+        } else if (stratCurrentAllocation < stratMaxAllocation) {
+            uint256 vaultMaxAllocation = (totalAllocBPS * totalAssets()) / PERCENT_DIVISOR;
+            uint256 vaultCurrentAllocation = totalAllocated;
+
+            if (vaultCurrentAllocation >= vaultMaxAllocation) {
+                return 0;
+            }
+
+            uint256 available = stratMaxAllocation - stratCurrentAllocation;
+            available = Math.min(available, vaultMaxAllocation - vaultCurrentAllocation);
+            available = Math.min(available, IERC20Metadata(asset).balanceOf(address(this)));
+
+            return int256(available);
+        } else {
+            return 0;
+        }
+    }
+
+    /**
+     * @notice Updates the withdrawalQueue to match the addresses and order specified.
+     * @param _withdrawalQueue The new withdrawalQueue to update to.
+     */
+    function setWithdrawalQueue(address[] calldata _withdrawalQueue) external onlyOwner {
+        uint256 queueLength = _withdrawalQueue.length;
+        require(queueLength != 0);
+
+        delete withdrawalQueue;
+        for (uint256 i = 0; i < queueLength; i++) {
+            address strategy = _withdrawalQueue[i];
+            StrategyParams storage params = strategies[strategy];
+            require(params.activation != 0);
+            withdrawalQueue.push(strategy);
+        }
+    }
+
+    /**
+     * @notice Function for various UIs to display the current value of one of our yield tokens.
      * Returns an uint256 with 18 decimals of how much underlying asset one vault share represents.
      */
     function getPricePerFullShare() public view returns (uint256) {
         return totalSupply() == 0 ? 10**decimals() : totalAssets() * 10**decimals() / totalSupply();
     }
 
+    /**
+     * @notice Helper function to report a loss by a given strategy.
+     * @param strategy The strategy to report the loss for.
+     * @param loss The amount lost.
+     */
     function _reportLoss(address strategy, uint256 loss) internal {
         StrategyParams storage stratParams = strategies[strategy];
         // Loss can only be up the amount of capital allocated to the strategy
@@ -461,14 +482,20 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
         totalAllocated -= loss;
     }
 
-    function report(int256 _roi, uint256 _repayment) external returns (uint256) {
+    /**
+     * @notice Helper function to report the strategy returns on a harvest.
+     * @param roi The return on investment (positive or negative) given as the total amount
+     * gained or lost from the harvest.
+     * @param repayment The repayment of debt by the strategy.
+     */
+    function report(int256 roi, uint256 repayment) external returns (uint256) {
         address stratAddr = msg.sender;
         require(strategies[stratAddr].activation != 0);
 
-        if (_roi < 0) {
-            _reportLoss(stratAddr, uint256(-_roi));
+        if (roi < 0) {
+            _reportLoss(stratAddr, uint256(-roi));
         } else {
-            strategies[stratAddr].gains += uint256(_roi);
+            strategies[stratAddr].gains += uint256(roi);
         }
 
         int256 available = availableCapital();
@@ -476,7 +503,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
         uint256 credit = 0;
         if (available < 0) {
             debt = uint256(-available);
-            uint256 repayment = Math.min(debt, _repayment);
+            uint256 repayment = Math.min(debt, repayment);
 
             if (repayment != 0) {
                 strategies[stratAddr].allocated -= repayment;
@@ -489,9 +516,9 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
             totalAllocated += credit;
         }
 
-        uint256 freeWantInStrat = _repayment;
-        if (_roi > 0) {
-            freeWantInStrat += uint256(_roi);
+        uint256 freeWantInStrat = repayment;
+        if (roi > 0) {
+            freeWantInStrat += uint256(roi);
         }
 
         if (credit > freeWantInStrat) {
@@ -516,22 +543,24 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
     }
 
     /**
+     * @notice Updates the vault tvl cap (the max amount of assets held by the vault)
      * @dev pass in max value of uint to effectively remove TVL cap
+     * @param newTvlCap The new tvl cap
      */
-    function updateTvlCap(uint256 _newTvlCap) public onlyOwner {
-        tvlCap = _newTvlCap;
+    function updateTvlCap(uint256 newTvlCap) public onlyOwner {
+        tvlCap = newTvlCap;
         emit TvlCapUpdated(tvlCap);
     }
 
-    /**
-     * @dev helper function to remove TVL cap
+     /**
+     * @notice Helper function to remove TVL cap
      */
     function removeTvlCap() external onlyOwner {
         updateTvlCap(type(uint256).max);
     }
 
     /**
-     * Activates or deactivates Vault mode where all Strategies go into full
+     * @notice Activates or deactivates Vault mode where all Strategies go into full
      * withdrawal.
      * During Emergency Shutdown:
      * 1. No Users may deposit into the Vault (but may withdraw as usual.)
@@ -541,44 +570,49 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      *
      * If true, the Vault goes into Emergency Shutdown. If false, the Vault
      * goes back into Normal Operation.
+     * @param active If emergencyShutdown is active or not
      */
-    function setEmergencyShutdown(bool _active) external onlyOwner {
-        emergencyShutdown = _active;
+    function setEmergencyShutdown(bool active) external onlyOwner {
+        emergencyShutdown = active;
     }
 
-    /*
-     * @dev functions to increase user's cumulative deposits and withdrawals
-     * @param _amount number of LP tokens being deposited/withdrawn
+    /**
+     * @notice increases user's cumulative deposits
+     * @param amount number of tokens being deposited
      */
-    function incrementDeposits(uint256 _amount) internal returns (bool) {
+    function incrementDeposits(uint256 amount) internal returns (bool) {
         uint256 initial = cumulativeDeposits[tx.origin];
-        uint256 newTotal = initial + _amount;
+        uint256 newTotal = initial + amount;
         cumulativeDeposits[tx.origin] = newTotal;
-        emit DepositsIncremented(tx.origin, _amount, newTotal);
-        return true;
-    }
-
-    function incrementWithdrawals(uint256 _amount) internal returns (bool) {
-        uint256 initial = cumulativeWithdrawals[tx.origin];
-        uint256 newTotal = initial + _amount;
-        cumulativeWithdrawals[tx.origin] = newTotal;
-        emit WithdrawalsIncremented(tx.origin, _amount, newTotal);
+        emit DepositsIncremented(tx.origin, amount, newTotal);
         return true;
     }
 
     /**
-     * @dev Rescues random funds stuck that the strat can't handle.
-     * @param _token address of the asset to rescue.
+     * @notice increases user's cumulative withdrawals
+     * @param amount number of tokens being withdrawn
      */
-    function inCaseTokensGetStuck(address _token) external onlyOwner {
-        require(_token != asset, "!asset");
-
-        uint256 amount = IERC20Metadata(_token).balanceOf(address(this));
-        IERC20Metadata(_token).safeTransfer(msg.sender, amount);
+    function incrementWithdrawals(uint256 amount) internal returns (bool) {
+        uint256 initial = cumulativeWithdrawals[tx.origin];
+        uint256 newTotal = initial + amount;
+        cumulativeWithdrawals[tx.origin] = newTotal;
+        emit WithdrawalsIncremented(tx.origin, amount, newTotal);
+        return true;
     }
 
     /**
-     * @dev Overrides the default 18 decimals for the vault ERC20 to
+     * @notice Rescues random funds stuck that the strat can't handle.
+     * @param token address of the asset to rescue.
+     */
+    function inCaseTokensGetStuck(address token) external onlyOwner {
+        require(token != asset, "!asset");
+
+        uint256 amount = IERC20Metadata(token).balanceOf(address(this));
+        IERC20Metadata(token).safeTransfer(msg.sender, amount);
+    }
+
+    /**
+     * @notice Overrides the default 18 decimals for the vault ERC20 to
      * match the same decimals as the underlying asset used
      */
     function decimals() public view override returns (uint8) {
