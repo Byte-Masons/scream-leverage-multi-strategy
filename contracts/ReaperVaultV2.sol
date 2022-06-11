@@ -260,6 +260,39 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
     }
 
     /**
+     * @dev A helper function to call deposit() with all the sender's funds.
+     */
+    function depositAll() external {
+        deposit(IERC20Metadata(asset).balanceOf(msg.sender), msg.sender);
+    }
+
+    /**
+     * @dev The entrypoint of funds into the system. People deposit with this function
+     * into the vault.
+     * @notice the _before and _after variables are used to account properly for
+     * 'burn-on-transaction' tokens.
+     */
+    function deposit(uint256 assets, address receiver) public nonReentrant returns (uint256 shares) {
+        require(!emergencyShutdown);
+        require(assets != 0, "please provide amount");
+        uint256 _pool = totalAssets();
+        require(_pool + assets <= tvlCap, "vault is full!");
+
+        uint256 _before = IERC20Metadata(asset).balanceOf(address(this));
+        IERC20Metadata(asset).safeTransferFrom(msg.sender, address(this), assets);
+        uint256 _after = IERC20Metadata(asset).balanceOf(address(this));
+        assets = _after - _before;
+        if (totalSupply() == 0) {
+            shares = assets;
+        } else {
+            shares = (assets * totalSupply()) / _pool;
+        }
+        _mint(receiver, shares);
+        incrementDeposits(assets);
+        emit Deposit(msg.sender, receiver, assets, shares);
+    }
+
+    /**
      * @notice Maximum amount of shares that can be minted from the Vault for the receiver, through a mint call.
      * @param receiver The minter, unused in this case but here as part of the ERC4626 spec.
      */
@@ -301,71 +334,38 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
         return assets;
     }
 
-    /**
-     * @dev Function for various UIs to display the current value of one of our yield tokens.
-     * Returns an uint256 with 18 decimals of how much underlying asset one vault share represents.
-     */
-    function getPricePerFullShare() public view returns (uint256) {
-        return totalSupply() == 0 ? 10**decimals() : totalAssets() * 10**decimals() / totalSupply();
+    function maxWithdraw(address owner) external view returns (uint256) {
+        return convertToAssets(balanceOf(owner));
     }
 
     /**
-     * @dev A helper function to call deposit() with all the sender's funds.
+     * @notice Allows an on-chain or off-chain user to simulate the effects of their withdrawal at the current block,
+     * given current on-chain conditions.
+     * @param assets The amount of assets to withdraw.
      */
-    function depositAll() external {
-        deposit(IERC20Metadata(asset).balanceOf(msg.sender), msg.sender);
+    function previewWithdraw(uint256 assets) external view returns (uint256) {
+        uint256 shares = convertToShares(assets);
+        if (totalSupply() == 0) return 0;
+        return shares;
     }
 
-    /**
-     * @dev The entrypoint of funds into the system. People deposit with this function
-     * into the vault.
-     * @notice the _before and _after variables are used to account properly for
-     * 'burn-on-transaction' tokens.
-     */
-    function deposit(uint256 assets, address receiver) public nonReentrant returns (uint256 shares) {
-        require(!emergencyShutdown);
-        require(assets != 0, "please provide amount");
-        uint256 _pool = totalAssets();
-        require(_pool + assets <= tvlCap, "vault is full!");
-
-        uint256 _before = IERC20Metadata(asset).balanceOf(address(this));
-        IERC20Metadata(asset).safeTransferFrom(msg.sender, address(this), assets);
-        uint256 _after = IERC20Metadata(asset).balanceOf(address(this));
-        assets = _after - _before;
-        if (totalSupply() == 0) {
-            shares = assets;
-        } else {
-            shares = (assets * totalSupply()) / _pool;
-        }
-        _mint(receiver, shares);
-        incrementDeposits(assets);
-        emit Deposit(msg.sender, receiver, assets, shares);
+    function withdraw(uint256 assets, address receiver, address owner) external returns (uint256 shares) {
+        require(assets > 0, "please provide amount");
+        shares = convertToShares(assets);
+        _withdraw(assets, shares, receiver, owner);
+        return shares;
     }
 
-    /**
-     * @dev A helper function to call withdraw() with all the sender's funds.
-     */
-    function withdrawAll() external {
-        withdraw(balanceOf(msg.sender));
-    }
+    function _withdraw(uint256 assets, uint256 shares, address receiver, address owner) internal returns (uint256) {
+        _burn(owner, shares);
 
-    /**
-     * @dev Function to exit the system. The vault will withdraw the required tokens
-     * from the strategies and pay up the asset holder. A proportional number of IOU
-     * tokens are burned in the process.
-     */
-    function withdraw(uint256 shares) public nonReentrant {
-        require(shares > 0, "please provide amount");
-        uint256 value = (totalAssets() * shares) / totalSupply();
-        _burn(msg.sender, shares);
-
-        if (value > IERC20Metadata(asset).balanceOf(address(this))) {
+        if (assets > IERC20Metadata(asset).balanceOf(address(this))) {
             uint256 totalLoss = 0;
             uint256 queueLength = withdrawalQueue.length;
             uint256 vaultBalance = 0;
             for (uint256 i = 0; i < queueLength; i++) {
                 vaultBalance = IERC20Metadata(asset).balanceOf(address(this));
-                if (value <= vaultBalance) {
+                if (assets <= vaultBalance) {
                     break;
                 }
 
@@ -375,13 +375,13 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
                     continue;
                 }
 
-                uint256 remaining = value - vaultBalance;
+                uint256 remaining = assets - vaultBalance;
                 uint256 loss = IStrategy(stratAddr).withdraw(Math.min(remaining, strategyBal));
                 uint256 actualWithdrawn = IERC20Metadata(asset).balanceOf(address(this)) - vaultBalance;
 
                 // Withdrawer incurs any losses from withdrawing as reported by strat
                 if (loss != 0) {
-                    value -= loss;
+                    assets -= loss;
                     totalLoss += loss;
                     _reportLoss(stratAddr, loss);
                 }
@@ -391,15 +391,51 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
             }
 
             vaultBalance = IERC20Metadata(asset).balanceOf(address(this));
-            if (value > vaultBalance) {
-                value = vaultBalance;
+            if (assets > vaultBalance) {
+                assets = vaultBalance;
             }
 
-            require(totalLoss <= ((value + totalLoss) * withdrawMaxLoss) / PERCENT_DIVISOR);
+            require(totalLoss <= ((assets + totalLoss) * withdrawMaxLoss) / PERCENT_DIVISOR);
         }
 
-        IERC20Metadata(asset).safeTransfer(msg.sender, value);
-        incrementWithdrawals(value);
+        IERC20Metadata(asset).safeTransfer(receiver, assets);
+        incrementWithdrawals(assets);
+        emit Withdraw(msg.sender, receiver, owner, assets, shares);
+        return assets;
+    }
+
+    function maxRedeem(address owner) external view returns (uint256) {
+        return balanceOf(owner);
+    }
+
+    function previewRedeem(uint256 shares) external view returns (uint256) {
+        return convertToAssets(shares);
+    }
+
+    /**
+     * @dev A helper function to call withdraw() with all the sender's funds.
+     */
+    function redeemAll() external {
+        redeem(balanceOf(msg.sender), msg.sender, msg.sender);
+    }
+
+    /**
+     * @dev Function to exit the system. The vault will withdraw the required tokens
+     * from the strategies and pay up the asset holder. A proportional number of IOU
+     * tokens are burned in the process.
+     */
+    function redeem(uint256 shares, address receiver, address owner) public nonReentrant returns (uint256 assets) {
+        require(shares > 0, "please provide amount");
+        assets = (totalAssets() * shares) / totalSupply();
+        return _withdraw(assets, shares, receiver, owner);
+    }
+
+    /**
+     * @dev Function for various UIs to display the current value of one of our yield tokens.
+     * Returns an uint256 with 18 decimals of how much underlying asset one vault share represents.
+     */
+    function getPricePerFullShare() public view returns (uint256) {
+        return totalSupply() == 0 ? 10**decimals() : totalAssets() * 10**decimals() / totalSupply();
     }
 
     function _reportLoss(address strategy, uint256 loss) internal {
