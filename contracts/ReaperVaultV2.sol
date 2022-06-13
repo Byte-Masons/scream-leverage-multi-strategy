@@ -105,7 +105,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      */
     function convertToAssets(uint256 shares) public view returns (uint256) {
         uint256 _totalSupply = totalSupply();
-        if (_totalSupply == 0) return 0;
+        if (_totalSupply == 0) return shares; // Initially the price is 1:1
         return shares * totalAssets() / _totalSupply;
     }
 
@@ -450,15 +450,6 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
             require(params.activation != 0);
             withdrawalQueue.push(strategy);
         }
-    }
-
-    /**
-     * @notice Function for various UIs to display the current value of one of our yield tokens.
-     * Returns an uint256 with 18 decimals of how much underlying asset one vault share represents.
-     * @return pricePerFullShare - the price for one share in the token the vault is holding.
-     */
-    function getPricePerFullShare() public view returns (uint256) {
-        return totalSupply() == 0 ? 10**decimals() : totalAssets() * 10**decimals() / totalSupply();
     }
 
     /**
