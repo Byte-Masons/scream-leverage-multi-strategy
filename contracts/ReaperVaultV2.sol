@@ -30,26 +30,17 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
         uint256 lastReport; // block.timestamp of the last time a report occured
     }
 
-    mapping(address => StrategyParams) public strategies;
-
-    // Ordering that `withdraw` uses to determine which strategies to pull funds from
-    address[] public withdrawalQueue;
-
-    uint256 public constant PERCENT_DIVISOR = 10000;
-    uint256 public tvlCap;
-
-    uint256 totalAllocBPS; // Sum of allocBPS across all strategies (in BPS, <= 10k)
-    uint256 totalAllocated; // Amount of tokens that have been allocated to all strategies
-    uint256 lastReport; // block.timestamp of last report from any strategy
-
-    uint256 public constructionTime;
-    bool public emergencyShutdown;
-
-    // The asset the vault accepts and looks to maximize.
-    address public immutable asset;
-
-    // Max slippage(loss) allowed when withdrawing, in BPS (0.01%)
-    uint256 withdrawMaxLoss = 1;
+    mapping(address => StrategyParams) public strategies;  // mapping strategies to their strategy parameters
+    address[] public withdrawalQueue; // Ordering that `withdraw` uses to determine which strategies to pull funds from
+    uint256 public constant PERCENT_DIVISOR = 10000; // Basis point unit, for calculating slippage and strategy allocations
+    uint256 public tvlCap; // The maximum amount of assets the vault can hold while still allowing deposits
+    uint256 public totalAllocBPS; // Sum of allocBPS across all strategies (in BPS, <= 10k)
+    uint256 public totalAllocated; // Amount of tokens that have been allocated to all strategies
+    uint256 public lastReport; // block.timestamp of last report from any strategy
+    uint256 public constructionTime; // The time the vault was deployed - for front-end
+    bool public emergencyShutdown; // Emergency shutdown - when true funds are pulled out of strategies to the vault
+    address public immutable asset; // The asset the vault accepts and looks to maximize.
+    uint256 public withdrawMaxLoss = 1; // Max slippage(loss) allowed when withdrawing, in BPS (0.01%)
 
     /**
      * @notice simple mappings used to determine PnL denominated in LP tokens,
@@ -58,9 +49,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
     mapping(address => uint256) public cumulativeDeposits;
     mapping(address => uint256) public cumulativeWithdrawals;
 
-    event TermsAccepted(address user);
     event TvlCapUpdated(uint256 newTvlCap);
-
     event DepositsIncremented(address user, uint256 amount, uint256 total);
     event WithdrawalsIncremented(address user, uint256 amount, uint256 total);
 
@@ -71,7 +60,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * @param _asset the asset to maximize.
      * @param _name the name of the vault asset.
      * @param _symbol the symbol of the vault asset.
-     * @param _tvlCap initial deposit cap for scaling TVL safely
+     * @param _tvlCap initial deposit cap for scaling TVL safely.
      */
     constructor(
         address _asset,
@@ -89,6 +78,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * @notice It calculates the total underlying value of {asset} held by the system.
      * It takes into account the vault contract balance, and the balance deployed across
      * all the strategies.
+     * @return totalManagedAssets - the total amount of assets managed by the vault.
      */
     function totalAssets() public view returns (uint256) {
         return IERC20Metadata(asset).balanceOf(address(this)) + totalAllocated;
@@ -97,7 +87,8 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
     /**
      * @notice The amount of shares that the Vault would exchange for the amount of assets provided,
      * in an ideal scenario where all the conditions are met.
-     * @param assets The amount of underlying assets to convert to shares
+     * @param assets The amount of underlying assets to convert to shares.
+     * @return shares - the amount of shares given for the amount of assets.
      */
     function convertToShares(uint256 assets) public view returns (uint256) {
         uint256 _totalSupply = totalSupply();
@@ -109,7 +100,8 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
     /**
      * @notice The amount of assets that the Vault would exchange for the amount of shares provided,
      * in an ideal scenario where all the conditions are met.
-     * @param shares The amount of shares to convert to underlying assets
+     * @param shares The amount of shares to convert to underlying assets.
+     * @return assets - the amount of assets given for the amount of shares.
      */
     function convertToAssets(uint256 shares) public view returns (uint256) {
         uint256 _totalSupply = totalSupply();
@@ -121,6 +113,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * @notice Maximum amount of the underlying asset that can be deposited into the Vault for the receiver, 
      * through a deposit call.
      * @param receiver The depositor, unused in this case but here as part of the ERC4626 spec.
+     * @return maxAssets - the maximum depositable assets.
      */
     function maxDeposit(address receiver) public view returns (uint256) {
         uint256 totalAssets = totalAssets();
@@ -133,7 +126,8 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
     /**
      * @notice Allows an on-chain or off-chain user to simulate the effects of their deposit at the current block, 
      * given current on-chain conditions. 
-     * @param assets The amount of assets to deposit
+     * @param assets The amount of assets to deposit.
+     * @return shares - the amount of shares given for the amount of assets.
      */
     function previewDeposit(uint256 assets) external view returns (uint256) {
         return convertToShares(assets);
@@ -153,6 +147,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * 'burn-on-transaction' tokens.
      * @param assets The amount of assets to deposit
      * @param receiver The receiver of the minted shares
+     * @return shares - the amount of shares issued from the deposit.
      */
     function deposit(uint256 assets, address receiver) public nonReentrant returns (uint256 shares) {
         require(!emergencyShutdown);
@@ -177,6 +172,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
     /**
      * @notice Maximum amount of shares that can be minted from the Vault for the receiver, through a mint call.
      * @param receiver The minter, unused in this case but here as part of the ERC4626 spec.
+     * @return shares - the maximum amount of shares issued from calling mint.
      */
     function maxMint(address receiver) public view virtual returns (uint256) {
         return convertToShares(maxDeposit(address(0)));
@@ -186,6 +182,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * @notice Allows an on-chain or off-chain user to simulate the effects of their mint at the current block, 
      * given current on-chain conditions.
      * @param shares The amount of shares to mint.
+     * @return assets - the amount of assets given for the amount of shares.
      */
     function previewMint(uint256 shares) external view returns (uint256) {
         uint256 assets = convertToAssets(shares);
@@ -197,6 +194,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * @notice Mints exactly shares Vault shares to receiver by depositing amount of underlying tokens.
      * @param shares The amount of shares to mint.
      * @param receiver The receiver of the minted shares.
+     * @return assets - the amount of assets transferred from the mint.
      */
     function mint(uint256 shares, address receiver) public returns (uint256) {
         require(!emergencyShutdown);
@@ -220,6 +218,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * @notice Maximum amount of the underlying asset that can be withdrawn from the owner balance in the Vault,
      * through a withdraw call.
      * @param owner The owner of the shares to withdraw.
+     * @return maxAssets - the maximum amount of assets transferred from calling withdraw.
      */
     function maxWithdraw(address owner) external view returns (uint256) {
         return convertToAssets(balanceOf(owner));
@@ -229,10 +228,11 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * @notice Allows an on-chain or off-chain user to simulate the effects of their withdrawal at the current block,
      * given current on-chain conditions.
      * @param assets The amount of assets to withdraw.
+     * @return shares - the amount of shares burned for the amount of assets.
      */
     function previewWithdraw(uint256 assets) external view returns (uint256) {
-        uint256 shares = convertToShares(assets);
         if (totalSupply() == 0) return 0;
+        uint256 shares = convertToShares(assets);
         return shares;
     }
 
@@ -241,6 +241,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * @param assets The amount of assets to withdraw.
      * @param receiver The receiver of the withdrawn assets.
      * @param owner The owner of the shares to withdraw.
+     * @return shares - the amount of shares burned.
      */
     function withdraw(uint256 assets, address receiver, address owner) external returns (uint256 shares) {
         require(assets > 0, "please provide amount");
@@ -255,6 +256,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * @param shares The amount of shares to burn.
      * @param receiver The receiver of the withdrawn assets.
      * @param owner The owner of the shares to withdraw.
+     * @return assets - the amount of assets withdrawn.
      */
     function _withdraw(uint256 assets, uint256 shares, address receiver, address owner) internal returns (uint256) {
         _burn(owner, shares);
@@ -308,6 +310,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * @notice Maximum amount of Vault shares that can be redeemed from the owner balance in the Vault, 
      * through a redeem call.
      * @param owner The owner of the shares to redeem.
+     * @return maxShares - the amount of redeemable shares.
      */
     function maxRedeem(address owner) external view returns (uint256) {
         return balanceOf(owner);
@@ -317,6 +320,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * @notice Allows an on-chain or off-chain user to simulate the effects of their redeemption at the current block,
      * given current on-chain conditions.
      * @param shares The amount of shares to redeem.
+     * @return assets - the amount of assets redeemed from the amount of shares.
      */
     function previewRedeem(uint256 shares) external view returns (uint256) {
         return convertToAssets(shares);
@@ -334,6 +338,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * @param shares The amount of shares to redeem.
      * @param receiver The receiver of the redeemed assets.
      * @param owner The owner of the shares to redeem.
+     * @return assets - the amount of assets redeemed.
      */
     function redeem(uint256 shares, address receiver, address owner) public nonReentrant returns (uint256 assets) {
         require(shares > 0, "please provide amount");
@@ -344,7 +349,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
     /**
      * @notice Adds a new strategy to the vault with a given allocation amount in basis points.
      * @param strategy The strategy to add.
-     * @param allocBPS The strategy allocation in basis points
+     * @param allocBPS The strategy allocation in basis points.
      */
     function addStrategy(address strategy, uint256 allocBPS) external onlyOwner {
         require(!emergencyShutdown);
@@ -370,7 +375,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
     /**
      * @notice Updates the allocation points for a given strategy.
      * @param strategy The strategy to update.
-     * @param allocBPS The strategy allocation in basis points
+     * @param allocBPS The strategy allocation in basis points.
      */
     function updateStrategyAllocBPS(address strategy, uint256 allocBPS) external onlyOwner {
         require(strategies[strategy].activation != 0);
@@ -399,6 +404,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * able to provide it. A positive amount means that vault has excess capital to provide
      * the strategy, while a negative amount means that the strategy has a balance owing to
      * the vault.
+     * @return availableCapital - the amount of capital the vault can provide the strategy.
      */
     function availableCapital() public view returns (int256) {
         address stratAddr = msg.sender;
@@ -449,6 +455,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
     /**
      * @notice Function for various UIs to display the current value of one of our yield tokens.
      * Returns an uint256 with 18 decimals of how much underlying asset one vault share represents.
+     * @return pricePerFullShare - the price for one share in the token the vault is holding.
      */
     function getPricePerFullShare() public view returns (uint256) {
         return totalSupply() == 0 ? 10**decimals() : totalAssets() * 10**decimals() / totalSupply();
@@ -487,6 +494,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * @param roi The return on investment (positive or negative) given as the total amount
      * gained or lost from the harvest.
      * @param repayment The repayment of debt by the strategy.
+     * @return debt - the strategy debt to the vault.
      */
     function report(int256 roi, uint256 repayment) external returns (uint256) {
         address stratAddr = msg.sender;
@@ -537,15 +545,19 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
         return debt;
     }
 
+    /**
+     * @notice Updates the withdrawMaxLoss which is the maximum allowed slippage.
+     * @param _withdrawMaxLoss The new value, in basis points.
+     */
     function updateWithdrawMaxLoss(uint256 _withdrawMaxLoss) external onlyOwner {
         require(_withdrawMaxLoss <= PERCENT_DIVISOR);
         withdrawMaxLoss = _withdrawMaxLoss;
     }
 
     /**
-     * @notice Updates the vault tvl cap (the max amount of assets held by the vault)
-     * @dev pass in max value of uint to effectively remove TVL cap
-     * @param newTvlCap The new tvl cap
+     * @notice Updates the vault tvl cap (the max amount of assets held by the vault).
+     * @dev pass in max value of uint to effectively remove TVL cap.
+     * @param newTvlCap The new tvl cap.
      */
     function updateTvlCap(uint256 newTvlCap) public onlyOwner {
         tvlCap = newTvlCap;
@@ -553,7 +565,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
     }
 
      /**
-     * @notice Helper function to remove TVL cap
+     * @notice Helper function to remove TVL cap.
      */
     function removeTvlCap() external onlyOwner {
         updateTvlCap(type(uint256).max);
@@ -570,7 +582,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      *
      * If true, the Vault goes into Emergency Shutdown. If false, the Vault
      * goes back into Normal Operation.
-     * @param active If emergencyShutdown is active or not
+     * @param active If emergencyShutdown is active or not.
      */
     function setEmergencyShutdown(bool active) external onlyOwner {
         emergencyShutdown = active;
@@ -589,7 +601,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
     }
 
     /**
-     * @notice increases user's cumulative withdrawals
+     * @notice increases user's cumulative withdrawals.
      * @param amount number of tokens being withdrawn.
      * @param owner The owner of the shares withdrawn.
      */
@@ -613,7 +625,8 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
 
     /**
      * @notice Overrides the default 18 decimals for the vault ERC20 to
-     * match the same decimals as the underlying asset used
+     * match the same decimals as the underlying asset used.
+     * @return decimals - the amount of decimals used by the vault ERC20.
      */
     function decimals() public view override returns (uint8) {
         return IERC20Metadata(asset).decimals();
