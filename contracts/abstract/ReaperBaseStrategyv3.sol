@@ -136,7 +136,7 @@ abstract contract ReaperBaseStrategyv3 is IStrategy, UUPSUpgradeable, AccessCont
 
         cascadingAccess = [DEFAULT_ADMIN_ROLE, ADMIN, GUARDIAN, STRATEGIST, KEEPER];
         clearUpgradeCooldown();
-        harvestLog.push(Harvest({timestamp: block.timestamp, vaultSharePrice: IVault(_vault).getPricePerFullShare()}));
+        harvestLog.push(Harvest({timestamp: block.timestamp, vaultSharePrice: IVault(_vault).convertToAssets(1 ether)}));
     }
 
     /**
@@ -188,7 +188,7 @@ abstract contract ReaperBaseStrategyv3 is IStrategy, UUPSUpgradeable, AccessCont
 
         if (block.timestamp >= harvestLog[harvestLog.length - 1].timestamp + harvestLogCadence) {
             harvestLog.push(
-                Harvest({timestamp: block.timestamp, vaultSharePrice: IVault(vault).getPricePerFullShare()})
+                Harvest({timestamp: block.timestamp, vaultSharePrice: IVault(vault).convertToAssets(1 ether)})
             );
         }
 

@@ -128,10 +128,11 @@ describe('Vaults', function () {
 
   describe('Deploying the vault and strategy', function () {
     it('should initiate vault with a 0 balance', async function () {
+      const assets = ethers.utils.parseEther('1');
       const totalBalance = await vault.totalAssets();
-      const pricePerFullShare = await vault.getPricePerFullShare();
+      const pricePerFullShare = await vault.convertToAssets(assets);
       expect(totalBalance).to.equal(0);
-      expect(pricePerFullShare).to.equal(ethers.utils.parseEther('1'));
+      expect(pricePerFullShare).to.equal(assets);
     });
   });
 
@@ -310,7 +311,7 @@ describe('Vaults', function () {
     it('should be able to convert shares in to amount of assets', async function () {
       const shareAmount = toWantUnit('100');
       let assets = await vault.convertToAssets(shareAmount);
-      expect(assets).to.equal(0);
+      expect(assets).to.equal(shareAmount);
       console.log(`assets: ${assets}`);
 
       const depositAmount = toWantUnit('1337');
@@ -475,7 +476,7 @@ describe('Vaults', function () {
     it('previewRedeem returns the correct amount of assets', async function () {
       let redeemAmount = toWantUnit('7');
       let redeemedAssetsPreview = await vault.previewRedeem(redeemAmount);
-      expect(redeemedAssetsPreview).to.equal(0);
+      expect(redeemedAssetsPreview).to.equal(redeemAmount);
       const depositAmount = toWantUnit('56');
       await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
       redeemedAssetsPreview = await vault.previewRedeem(redeemAmount);

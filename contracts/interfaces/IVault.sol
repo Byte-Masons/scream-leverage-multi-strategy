@@ -12,7 +12,7 @@ interface IVault {
         uint256 lastReport; // block.timestamp of the last time a report occured
     }
 
-    function getPricePerFullShare() external view returns (uint256);
+    function convertToAssets(uint256 shares) external view returns (uint256);
 
     function strategies(address strategy) external view returns (StrategyParams memory);
 
