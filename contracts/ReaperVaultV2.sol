@@ -11,8 +11,6 @@ import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
-import "hardhat/console.sol";
-
 /**
  * @notice Implementation of a vault to deposit funds for yield optimizing.
  * This is the contract that receives funds and that users interface with.
@@ -129,7 +127,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * @param assets The amount of assets to deposit.
      * @return shares - the amount of shares given for the amount of assets.
      */
-    function previewDeposit(uint256 assets) external view returns (uint256) {
+    function previewDeposit(uint256 assets) public view returns (uint256) {
         return convertToShares(assets);
     }
 
@@ -143,8 +141,6 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
     /**
      * @notice The entrypoint of funds into the system. People deposit with this function
      * into the vault.
-     * the _before and _after variables are used to account properly for
-     * 'burn-on-transaction' tokens.
      * @param assets The amount of assets to deposit
      * @param receiver The receiver of the minted shares
      * @return shares - the amount of shares issued from the deposit.
@@ -154,16 +150,10 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
         require(assets != 0, "please provide amount");
         uint256 _pool = totalAssets();
         require(_pool + assets <= tvlCap, "vault is full!");
+        shares = previewDeposit(assets);
 
-        uint256 _before = IERC20Metadata(asset).balanceOf(address(this));
         IERC20Metadata(asset).safeTransferFrom(msg.sender, address(this), assets);
-        uint256 _after = IERC20Metadata(asset).balanceOf(address(this));
-        assets = _after - _before;
-        if (totalSupply() == 0) {
-            shares = assets;
-        } else {
-            shares = (assets * totalSupply()) / _pool;
-        }
+        
         _mint(receiver, shares);
         incrementDeposits(assets, receiver);
         emit Deposit(msg.sender, receiver, assets, shares);
@@ -184,7 +174,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * @param shares The amount of shares to mint.
      * @return assets - the amount of assets given for the amount of shares.
      */
-    function previewMint(uint256 shares) external view returns (uint256) {
+    function previewMint(uint256 shares) public view returns (uint256) {
         uint256 assets = convertToAssets(shares);
         if (assets == 0 && totalAssets() == 0) return shares;
         return assets;
@@ -199,7 +189,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
     function mint(uint256 shares, address receiver) public returns (uint256) {
         require(!emergencyShutdown);
         require(shares != 0, "please provide amount");
-        uint256 assets = convertToAssets(shares);
+        uint256 assets = previewMint(shares);
         uint256 _pool = totalAssets();
         require(_pool + assets <= tvlCap, "vault is full!");
 
@@ -230,7 +220,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * @param assets The amount of assets to withdraw.
      * @return shares - the amount of shares burned for the amount of assets.
      */
-    function previewWithdraw(uint256 assets) external view returns (uint256) {
+    function previewWithdraw(uint256 assets) public view returns (uint256) {
         if (totalSupply() == 0) return 0;
         uint256 shares = convertToShares(assets);
         return shares;
@@ -245,7 +235,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      */
     function withdraw(uint256 assets, address receiver, address owner) external returns (uint256 shares) {
         require(assets > 0, "please provide amount");
-        shares = convertToShares(assets);
+        shares = previewWithdraw(assets);
         _withdraw(assets, shares, receiver, owner);
         return shares;
     }
@@ -322,7 +312,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * @param shares The amount of shares to redeem.
      * @return assets - the amount of assets redeemed from the amount of shares.
      */
-    function previewRedeem(uint256 shares) external view returns (uint256) {
+    function previewRedeem(uint256 shares) public view returns (uint256) {
         return convertToAssets(shares);
     }
 
@@ -342,7 +332,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      */
     function redeem(uint256 shares, address receiver, address owner) public nonReentrant returns (uint256 assets) {
         require(shares > 0, "please provide amount");
-        assets = (totalAssets() * shares) / totalSupply();
+        assets = previewRedeem(shares);
         return _withdraw(assets, shares, receiver, owner);
     }
 
