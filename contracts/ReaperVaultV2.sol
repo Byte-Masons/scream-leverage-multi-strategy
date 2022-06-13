@@ -30,6 +30,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
 
     mapping(address => StrategyParams) public strategies;  // mapping strategies to their strategy parameters
     address[] public withdrawalQueue; // Ordering that `withdraw` uses to determine which strategies to pull funds from
+    uint256 public constant DEGRADATION_COEFFICIENT = 10 ** 18; // The unit for calculating profit degradation.
     uint256 public constant PERCENT_DIVISOR = 10000; // Basis point unit, for calculating slippage and strategy allocations
     uint256 public tvlCap; // The maximum amount of assets the vault can hold while still allowing deposits
     uint256 public totalAllocBPS; // Sum of allocBPS across all strategies (in BPS, <= 10k)
@@ -39,6 +40,8 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
     bool public emergencyShutdown; // Emergency shutdown - when true funds are pulled out of strategies to the vault
     address public immutable asset; // The asset the vault accepts and looks to maximize.
     uint256 public withdrawMaxLoss = 1; // Max slippage(loss) allowed when withdrawing, in BPS (0.01%)
+    uint256 public lockedProfitDegradation; // rate per block of degradation. DEGRADATION_COEFFICIENT is 100% per block
+    uint256 public  lockedProfit; // how much profit is locked and cant be withdrawn
 
     /**
      * @notice simple mappings used to determine PnL denominated in LP tokens,
@@ -50,6 +53,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
     event TvlCapUpdated(uint256 newTvlCap);
     event DepositsIncremented(address user, uint256 amount, uint256 total);
     event WithdrawalsIncremented(address user, uint256 amount, uint256 total);
+    event LockedProfitDegradationUpdated(uint256 degradation);
 
     /**
      * @notice Initializes the vault's own 'RF' asset.
@@ -70,6 +74,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
         constructionTime = block.timestamp;
         lastReport = block.timestamp;
         tvlCap = _tvlCap;
+        lockedProfitDegradation = DEGRADATION_COEFFICIENT * 46 / 10 ** 6; // 6 hours in blocks
     }
 
     /**
@@ -79,7 +84,25 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * @return totalManagedAssets - the total amount of assets managed by the vault.
      */
     function totalAssets() public view returns (uint256) {
-        return IERC20Metadata(asset).balanceOf(address(this)) + totalAllocated;
+        return IERC20Metadata(asset).balanceOf(address(this)) + totalAllocated - _calculateLockedProfit();
+    }
+
+    /**
+     * @notice It calculates the amount of locked profit from recent harvests.
+     * @return the amount of locked profit.
+     */
+    function _calculateLockedProfit() internal view returns (uint256) {
+        uint256 lockedFundsRatio = (block.timestamp - lastReport) * lockedProfitDegradation;
+
+        if(lockedFundsRatio < DEGRADATION_COEFFICIENT) {
+            return lockedProfit - (
+                lockedFundsRatio
+                * lockedProfit
+                / DEGRADATION_COEFFICIENT
+            );
+        } else {
+            return 0;
+        }
     }
 
     /**
@@ -480,10 +503,14 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
     function report(int256 roi, uint256 repayment) external returns (uint256) {
         address stratAddr = msg.sender;
         require(strategies[stratAddr].activation != 0);
+        uint256 loss = 0;
+        uint256 gain = 0;
 
         if (roi < 0) {
-            _reportLoss(stratAddr, uint256(-roi));
+            loss = uint256(-roi);
+            _reportLoss(stratAddr, loss);
         } else {
+            gain = uint256(roi);
             strategies[stratAddr].gains += uint256(roi);
         }
 
@@ -514,6 +541,13 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
             IERC20Metadata(asset).safeTransfer(stratAddr, credit - freeWantInStrat);
         } else if (credit < freeWantInStrat) {
             IERC20Metadata(asset).safeTransferFrom(stratAddr, address(this), freeWantInStrat - credit);
+        }
+
+        uint256 lockedProfitBeforeLoss = _calculateLockedProfit() + gain;
+        if (lockedProfitBeforeLoss > loss) {
+            lockedProfit = lockedProfitBeforeLoss - loss;
+        } else {
+            lockedProfit = 0;
         }
 
         strategies[stratAddr].lastReport = block.timestamp;
@@ -611,5 +645,16 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      */
     function decimals() public view override returns (uint8) {
         return IERC20Metadata(asset).decimals();
+    }
+
+    /**
+     * @notice Changes the locked profit degradation.
+     * match the same decimals as the underlying asset used.
+     * @param degradation - The rate of degradation in percent per second scaled to 1e18.
+     */
+    function setLockedProfitDegradation(uint256 degradation) external onlyOwner {
+        require(degradation <= DEGRADATION_COEFFICIENT);
+        lockedProfitDegradation = degradation;
+        emit LockedProfitDegradationUpdated(degradation);
     }
 }
