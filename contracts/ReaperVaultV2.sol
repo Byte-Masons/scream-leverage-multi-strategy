@@ -18,6 +18,7 @@ import "hardhat/console.sol";
  * This is the contract that receives funds and that users interface with.
  * The yield optimizing strategy itself is implemented in a separate 'Strategy.sol' contract.
  */
+ // any plans to migrate this from Ownable to AccessControl? or unnecessary?
 contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20Metadata;
 
@@ -30,6 +31,8 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
         uint256 lastReport; // block.timestamp of the last time a report occured
     }
 
+    // harvest logging on chain wouldn't be necessary if we're going to build a subgraph for it
+    // just need to emit events with the data
     struct Harvest {
         uint256 timestamp;
         int256 roi;
@@ -49,6 +52,9 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
     uint256 public lastReport; // block.timestamp of last report from any strategy
     uint256 public constructionTime; // The time the vault was deployed - for front-end
     bool public emergencyShutdown; // Emergency shutdown - when true funds are pulled out of strategies to the vault
+
+    // talk to goober re: immutable variables, he mentioned wanting to make the vault itself a proxy
+    // and you can't have immutable variables with that
     address public immutable asset; // The asset the vault accepts and looks to maximize.
     uint256 public withdrawMaxLoss = 1; // Max slippage(loss) allowed when withdrawing, in BPS (0.01%)
     uint256 public lockedProfitDegradation; // rate per block of degradation. DEGRADATION_COEFFICIENT is 100% per block
@@ -58,6 +64,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * @notice simple mappings used to determine PnL denominated in LP tokens,
      * as well as keep a generalized history of a user's protocol usage.
      */
+     // these mappings would also be theoretically unnecessary with a subgraph since we emit events already
     mapping(address => uint256) public cumulativeDeposits;
     mapping(address => uint256) public cumulativeWithdrawals;
 
@@ -123,6 +130,8 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * @param assets The amount of underlying assets to convert to shares.
      * @return shares - the amount of shares given for the amount of assets.
      */
+    // should we also be using the return variable names as specified in the EIP standard?
+    // so these functions should be "returns (uint256 shares)"
     function convertToShares(uint256 assets) public view returns (uint256) {
         uint256 _totalSupply = totalSupply();
         uint256 _totalAssets = totalAssets();
