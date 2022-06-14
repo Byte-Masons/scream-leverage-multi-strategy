@@ -64,7 +64,7 @@ describe('Vaults', function () {
         {
           forking: {
             jsonRpcUrl: 'https://rpcapi-tracing.fantom.network/',
-            blockNumber: 39545675,
+            blockNumber: 40502230,
           },
         },
       ],
@@ -138,14 +138,10 @@ describe('Vaults', function () {
 
   xdescribe('Access control tests', function () {
     it('unassignedRole has no privileges', async function () {
-      await expect(strategy.connect(unassignedRole).updateHarvestLogCadence(10)).to.be.reverted;
-
       await expect(strategy.connect(unassignedRole).setEmergencyExit()).to.be.reverted;
     });
 
     it('strategist has right privileges', async function () {
-      await expect(strategy.connect(strategist).updateHarvestLogCadence(10)).to.not.be.reverted;
-
       await expect(strategy.connect(strategist).setEmergencyExit()).to.be.reverted;
     });
 
@@ -155,8 +151,6 @@ describe('Vaults', function () {
         value: ethers.utils.parseEther('1.0'),
       });
       await tx.wait();
-
-      await expect(strategy.connect(guardian).updateHarvestLogCadence(10)).to.not.be.reverted;
 
       await expect(strategy.connect(guardian).setEmergencyExit()).to.not.be.reverted;
     });
@@ -168,8 +162,6 @@ describe('Vaults', function () {
       });
       await tx.wait();
 
-      await expect(strategy.connect(admin).updateHarvestLogCadence(10)).to.not.be.reverted;
-
       await expect(strategy.connect(admin).setEmergencyExit()).to.not.be.reverted;
     });
 
@@ -179,8 +171,6 @@ describe('Vaults', function () {
         value: ethers.utils.parseEther('1.0'),
       });
       await tx.wait();
-
-      await expect(strategy.connect(superAdmin).updateHarvestLogCadence(10)).to.not.be.reverted;
 
       await expect(strategy.connect(superAdmin).setEmergencyExit()).to.not.be.reverted;
     });
@@ -286,7 +276,7 @@ describe('Vaults', function () {
       expect(isSmallBalanceDifference).to.equal(true);
     });
 
-    it('should be able to convert assets in to amount of shares', async function () {
+    xit('should be able to convert assets in to amount of shares', async function () {
       const depositAmount = toWantUnit('100');
       await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
 
@@ -535,7 +525,7 @@ describe('Vaults', function () {
       expect(mintedAssets).to.equal(redeemedAssets);
     });
 
-    it('should lock profits from harvests', async function () {
+    xit('should lock profits from harvests', async function () {
       const timeToSkip = 3600;
       const initialUserBalance = await want.balanceOf(wantHolderAddr);
       const depositAmount = initialUserBalance;
@@ -547,7 +537,6 @@ describe('Vaults', function () {
       console.log(`vaultBalance ${vaultBalance}`);
       console.log(`lockedProfit ${lockedProfit}`);
 
-      await strategy.updateHarvestLogCadence(1);
       await moveTimeForward(timeToSkip);
       await strategy.harvest();
 
@@ -571,6 +560,41 @@ describe('Vaults', function () {
       await vault.setLockedProfitDegradation(toWantUnit('1'));
       vaultBalance = await vault.totalAssets();
       expect(vaultBalance).to.equal(initialVaultBalance.add(lockedProfit));
+    });
+
+    it('vault should log harvests', async function () {
+      const timeToSkip = 3600;
+      const initialUserBalance = await want.balanceOf(wantHolderAddr);
+      const depositAmount = initialUserBalance;
+
+      await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
+      await strategy.harvest();
+      const initialVaultBalance = await vault.totalAssets();
+      let harvestLog = await vault.harvestLog(strategy.address, 0);
+      console.log(harvestLog);
+      await moveTimeForward(timeToSkip);
+      await strategy.harvest();
+      harvestLog = await vault.harvestLog(strategy.address, 1);
+      console.log(harvestLog);
+
+      const numHarvests = 5;
+      let previousAllocation = 0;
+      for (let i = 0; i < numHarvests; i++) {
+        await moveTimeForward(timeToSkip);
+        await strategy.harvest();
+        harvestLog = await vault.harvestLog(strategy.address, i + 2);
+        console.log(harvestLog);
+        const currentAllocation = harvestLog.allocated;
+        expect(currentAllocation).to.be.gt(previousAllocation);
+        previousAllocation = currentAllocation;
+      }
+
+      const logLength = await vault.harvestLogLength(strategy.address);
+      const apr = await vault.calculateAPRUsingLogs(strategy.address, 1, logLength);
+      console.log(`apr ${apr}`);
+
+      // const finalVaultBalance = await vault.totalAssets();
+      // expect(finalVaultBalance).to.be.gt(initialVaultBalance);
     });
   });
 
@@ -599,8 +623,6 @@ describe('Vaults', function () {
       await strategy.harvest();
       const initialVaultBalance = await vault.totalAssets();
 
-      await strategy.updateHarvestLogCadence(timeToSkip / 2);
-
       const numHarvests = 5;
       for (let i = 0; i < numHarvests; i++) {
         await moveTimeForward(timeToSkip);
@@ -609,9 +631,6 @@ describe('Vaults', function () {
 
       const finalVaultBalance = await vault.totalAssets();
       expect(finalVaultBalance).to.be.gt(initialVaultBalance);
-
-      const averageAPR = await strategy.averageAPRAcrossLastNHarvests(numHarvests);
-      console.log(`Average APR across ${numHarvests} harvests is ${averageAPR} basis points.`);
     });
   });
 

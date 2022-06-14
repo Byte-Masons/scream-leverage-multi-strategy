@@ -581,6 +581,7 @@ contract ReaperStrategyScreamLeverage is ReaperBaseStrategyv3 {
             uint256 repayment
         )
     {
+        console.log("_harvestCore");
         _claimRewards();
         _swapRewardsToWftm();
         callerFee = _chargeFees();
@@ -593,6 +594,7 @@ contract ReaperStrategyScreamLeverage is ReaperBaseStrategyv3 {
 
         if (totalAssets > allocated) {
             uint256 profit = totalAssets - allocated;
+            console.log("profit: ", profit);
             toFree += profit;
             roi = int256(profit);
         } else if (totalAssets < allocated) {
@@ -620,7 +622,9 @@ contract ReaperStrategyScreamLeverage is ReaperBaseStrategyv3 {
      * Swaps {SCREAM} to {WFTM}
      */
     function _swapRewardsToWftm() internal {
+        console.log("_swapRewardsToWftm");
         uint256 screamBalance = IERC20Upgradeable(SCREAM).balanceOf(address(this));
+        console.log("screamBalance: ", screamBalance);
         if (screamBalance >= minScreamToSell) {
             IERC20Upgradeable(SCREAM).safeIncreaseAllowance(
                 UNI_ROUTER,
@@ -641,7 +645,9 @@ contract ReaperStrategyScreamLeverage is ReaperBaseStrategyv3 {
      * Charges fees based on the amount of WFTM gained from reward
      */
     function _chargeFees() internal returns (uint256 callerFee) {
+        console.log("_chargeFees");
         uint256 wftmFee = (IERC20Upgradeable(WFTM).balanceOf(address(this)) * totalFee) / PERCENT_DIVISOR;
+        console.log("wftmFee: ", wftmFee);
         if (wftmFee != 0) {
             callerFee = (wftmFee * callFee) / PERCENT_DIVISOR;
             uint256 treasuryFeeToVault = (wftmFee * treasuryFee) / PERCENT_DIVISOR;

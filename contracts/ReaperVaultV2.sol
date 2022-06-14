@@ -11,6 +11,8 @@ import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
+import "hardhat/console.sol";
+
 /**
  * @notice Implementation of a vault to deposit funds for yield optimizing.
  * This is the contract that receives funds and that users interface with.
@@ -28,10 +30,19 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
         uint256 lastReport; // block.timestamp of the last time a report occured
     }
 
+    struct Harvest {
+        uint256 timestamp;
+        int256 roi;
+        uint256 allocated;
+    }
+
     mapping(address => StrategyParams) public strategies;  // mapping strategies to their strategy parameters
+    mapping(address => Harvest[]) public harvestLog;  // harvest logs for all strategies
+    uint256 public harvestLogCadence;
     address[] public withdrawalQueue; // Ordering that `withdraw` uses to determine which strategies to pull funds from
     uint256 public constant DEGRADATION_COEFFICIENT = 10 ** 18; // The unit for calculating profit degradation.
     uint256 public constant PERCENT_DIVISOR = 10000; // Basis point unit, for calculating slippage and strategy allocations
+    uint256 public constant ONE_YEAR = 365 days;
     uint256 public tvlCap; // The maximum amount of assets the vault can hold while still allowing deposits
     uint256 public totalAllocBPS; // Sum of allocBPS across all strategies (in BPS, <= 10k)
     uint256 public totalAllocated; // Amount of tokens that have been allocated to all strategies
@@ -75,6 +86,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
         lastReport = block.timestamp;
         tvlCap = _tvlCap;
         lockedProfitDegradation = DEGRADATION_COEFFICIENT * 46 / 10 ** 6; // 6 hours in blocks
+        harvestLogCadence = 1 minutes;
     }
 
     /**
@@ -506,6 +518,15 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
         uint256 loss = 0;
         uint256 gain = 0;
 
+        Harvest[] storage log = harvestLog[stratAddr];
+        bool shouldLogHarvest = log.length == 0 || block.timestamp >= log[log.length - 1].timestamp + harvestLogCadence;
+
+        if (shouldLogHarvest) {
+            harvestLog[stratAddr].push(
+                Harvest({timestamp: block.timestamp, roi: roi, allocated: strategies[stratAddr].allocated})
+            );
+        }
+
         if (roi < 0) {
             loss = uint256(-roi);
             _reportLoss(stratAddr, loss);
@@ -656,5 +677,94 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
         require(degradation <= DEGRADATION_COEFFICIENT);
         lockedProfitDegradation = degradation;
         emit LockedProfitDegradationUpdated(degradation);
+    }
+
+    function getStrategyLogAPR(address strategy, uint256 logIndex) public view returns (int256) {
+            Harvest storage log = harvestLog[strategy][logIndex];
+            int256 roi = log.roi;
+
+            uint256 unsignedRoi;
+            bool increasing = true;
+            if (roi < 0) {
+                increasing = false;
+                unsignedRoi = uint256(-roi);
+            } else {
+                unsignedRoi = uint256(roi);
+            }
+            console.logInt(log.roi);
+            uint256 allocation = log.allocated;
+            uint256 unsignedPercentageChange = (unsignedRoi * 10**decimals()) / allocation;
+            uint256 previousTimestamp = harvestLog[strategy][logIndex - 1].timestamp;
+            uint256 timeDifference = log.timestamp - previousTimestamp;
+            uint256 yearlyUnsignedPercentageChange = (unsignedPercentageChange * ONE_YEAR) / timeDifference;
+            yearlyUnsignedPercentageChange /= 1e10; // restore basis points precision
+            int256 apr;
+            if (increasing) {
+                apr = int256(yearlyUnsignedPercentageChange);
+            } else {
+                apr = -int256(yearlyUnsignedPercentageChange);
+            }
+            return apr;
+    }
+
+    /**
+     * @dev Project an APR using the vault share price change between harvests at the provided indices.
+     */
+    function calculateAPRUsingLogs(address strategy, uint256 startIndex, uint256 endIndex) public view returns (int256) {
+        console.log("calculateAPRUsingLogs");
+        require(startIndex != 0);
+        require(startIndex <= endIndex);
+        
+        int256 runningAPRSum;
+        int256 numLogsProcessed;
+
+        for (uint256 i = startIndex; i < endIndex; i++) {
+            runningAPRSum += getStrategyLogAPR(strategy, i);
+            numLogsProcessed++;
+        }
+
+        return runningAPRSum / numLogsProcessed;
+    }
+    //withdrawalQueue
+
+    function calculateVaultAPR(uint256 fromTime) public view returns (int256) {
+        for (uint256 index = 0; index < withdrawalQueue.length; index++) {
+            address strategy = withdrawalQueue[index];
+            uint256 logLength = harvestLogLength(strategy);
+            uint256 strategyAPR = 0;
+            uint256 nrOfLogs = 0;
+            for (uint256 i = harvestLog.length - 1; i > 0; i--) {
+                uint256 timestamp = harvestLog[strategy][i].timestamp;
+                if (timestamp < fromTime) break;
+
+
+            }
+            // getStrategyLogAPR
+        }
+    }
+
+    /**
+     * @dev Traverses the harvest log backwards _n items,
+     *      and returns the average APR calculated across all the included
+     *      log entries. APR is multiplied by PERCENT_DIVISOR to retain precision.
+     */
+    function averageAPRAcrossLastNHarvests(int256 _n) external view returns (int256) {
+        // require(harvestLog.length >= 2);
+
+        // return calculateAPRUsingLogs(strategy, startIndex, endIndex);
+
+        // int256 runningAPRSum;
+        // int256 numLogsProcessed;
+
+        // for (uint256 i = harvestLog.length - 1; i > 0 && numLogsProcessed < _n; i--) {
+        //     runningAPRSum += calculateAPRUsingLogs(i - 1, i);
+        //     numLogsProcessed++;
+        // }
+
+        // return runningAPRSum / numLogsProcessed;
+    }
+
+    function harvestLogLength(address strategy) external view returns (uint256) {
+        return harvestLog[strategy].length;
     }
 }
