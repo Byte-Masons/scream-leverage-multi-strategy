@@ -596,7 +596,7 @@ describe('Vaults', function () {
       expect(ltv).to.be.closeTo(targetLTV, allowedLTVDrift);
     });
 
-    it('should trigger deleveraging on deposit when LTV is too high', async function () {
+    xit('should trigger deleveraging on deposit when LTV is too high', async function () {
       const depositAmount = toWantUnit('100');
       await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
       await strategy.harvest();
@@ -611,7 +611,7 @@ describe('Vaults', function () {
       expect(ltvAfter).to.be.closeTo(newLTV, allowedLTVDrift);
     });
 
-    it('should not change leverage when LTV is within the allowed drift on deposit', async function () {
+    xit('should not change leverage when LTV is within the allowed drift on deposit', async function () {
       const depositAmount = toWantUnit('100');
       await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
       await strategy.harvest();
@@ -622,6 +622,30 @@ describe('Vaults', function () {
       await strategy.harvest();
       const ltvAfter = await strategy.calculateLTV();
       expect(ltvAfter).to.be.closeTo(targetLTV, allowedLTVDrift);
+    });
+
+    it('should allow withdrawals', async function () {
+      const userBalance = await want.balanceOf(wantHolderAddr);
+      const depositAmount = toWantUnit('100');
+      let tx = await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
+      let receipt = await tx.wait();
+      console.log(`deposit gas used ${receipt.gasUsed}`);
+      console.log(`strategy balance ${await strategy.balanceOf()}`);
+      let ltv = await strategy.calculateLTV();
+      console.log(`LTV after deposit ${ltv.toString()}`);
+
+      tx = await vault.connect(wantHolder).redeemAll();
+      receipt = await tx.wait();
+      console.log(`withdraw gas used ${receipt.gasUsed}`);
+      ltv = await strategy.calculateLTV();
+      console.log(`strategy balance ${await strategy.balanceOf()}`);
+      console.log(`LTV after withdraw ${ltv.toString()}`);
+      const newUserVaultBalance = await vault.balanceOf(wantHolderAddr);
+      const userBalanceAfterWithdraw = await want.balanceOf(wantHolderAddr);
+      const expectedBalance = userBalance;
+      const smallDifference = expectedBalance * 0.0000001;
+      const isSmallBalanceDifference = expectedBalance.sub(userBalanceAfterWithdraw) < smallDifference;
+      expect(isSmallBalanceDifference).to.equal(true);
     });
 
     xit('should be able to harvest', async function () {
