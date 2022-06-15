@@ -11,8 +11,6 @@ import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
-import "hardhat/console.sol";
-
 /**
  * @notice Implementation of a vault to deposit funds for yield optimizing.
  * This is the contract that receives funds and that users interface with.
@@ -65,6 +63,13 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
         uint256 allocated,
         uint256 allocBPS 
     );
+    event StrategyAdded(address indexed strategy, uint256 allocBPS);
+    event StrategyAllocBPSUpdated(address indexed strategy, uint256 allocBPS);
+    event StrategyRevoked(address indexed strategy);
+    event UpdateWithdrawalQueue(address[] withdrawalQueue);
+    event WithdrawMaxLossUpdated(uint256 withdrawMaxLoss);
+    event EmergencyShutdown(bool active);
+    event InCaseTokensGetStuckCalled(address token, uint256 amount);
 
     /**
      * @notice Initializes the vault's own 'RF' asset.
@@ -394,6 +399,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
 
         totalAllocBPS += allocBPS;
         withdrawalQueue.push(strategy);
+        emit StrategyAdded(strategy, allocBPS);
     }
 
     /**
@@ -407,6 +413,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
         strategies[strategy].allocBPS = allocBPS;
         totalAllocBPS += allocBPS;
         require(totalAllocBPS <= PERCENT_DIVISOR);
+        emit StrategyAllocBPSUpdated(strategy, allocBPS);
     }
 
     /**
@@ -421,6 +428,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
 
         totalAllocBPS -= strategies[strategy].allocBPS;
         strategies[strategy].allocBPS = 0;
+        emit StrategyRevoked(strategy);
     }
 
     /**
@@ -474,6 +482,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
             require(params.activation != 0);
             withdrawalQueue.push(strategy);
         }
+        emit UpdateWithdrawalQueue(withdrawalQueue);
     }
 
     /**
@@ -527,16 +536,11 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
         }
 
         int256 available = availableCapital();
-        console.log("available: ");
-        console.logInt(available);
         uint256 debt = 0;
         uint256 credit = 0;
-        // uint256 repayment;
         if (available < 0) {
             debt = uint256(-available);
-            console.log("debt: ", debt);
             repayment = Math.min(debt, repayment);
-            console.log("repayment: ", repayment);
 
             if (repayment != 0) {
                 strategy.allocated -= repayment;
@@ -554,13 +558,9 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
             freeWantInStrat += uint256(roi);
         }
 
-        console.log("freeWantInStrat: ", freeWantInStrat);
-        console.log("credit: ", credit);
-
         if (credit > freeWantInStrat) {
             IERC20Metadata(asset).safeTransfer(stratAddr, credit - freeWantInStrat);
         } else if (credit < freeWantInStrat) {
-            console.log("credit < freeWantInStrat");
             IERC20Metadata(asset).safeTransferFrom(stratAddr, address(this), freeWantInStrat - credit);
         }
 
@@ -598,6 +598,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
     function updateWithdrawMaxLoss(uint256 _withdrawMaxLoss) external onlyOwner {
         require(_withdrawMaxLoss <= PERCENT_DIVISOR);
         withdrawMaxLoss = _withdrawMaxLoss;
+        emit WithdrawMaxLossUpdated(withdrawMaxLoss);
     }
 
     /**
@@ -632,6 +633,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      */
     function setEmergencyShutdown(bool active) external onlyOwner {
         emergencyShutdown = active;
+        emit EmergencyShutdown(emergencyShutdown);
     }
 
     /**
@@ -667,6 +669,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
 
         uint256 amount = IERC20Metadata(token).balanceOf(address(this));
         IERC20Metadata(token).safeTransfer(msg.sender, amount);
+        emit InCaseTokensGetStuckCalled(token, amount);
     }
 
     /**
