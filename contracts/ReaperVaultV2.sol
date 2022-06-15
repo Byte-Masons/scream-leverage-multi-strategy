@@ -11,6 +11,8 @@ import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
+import "hardhat/console.sol";
+
 /**
  * @notice Implementation of a vault to deposit funds for yield optimizing.
  * This is the contract that receives funds and that users interface with.
@@ -525,12 +527,16 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
         }
 
         int256 available = availableCapital();
+        console.log("available: ");
+        console.logInt(available);
         uint256 debt = 0;
         uint256 credit = 0;
-        uint256 repayment;
+        // uint256 repayment;
         if (available < 0) {
             debt = uint256(-available);
+            console.log("debt: ", debt);
             repayment = Math.min(debt, repayment);
+            console.log("repayment: ", repayment);
 
             if (repayment != 0) {
                 strategy.allocated -= repayment;
@@ -548,9 +554,13 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
             freeWantInStrat += uint256(roi);
         }
 
+        console.log("freeWantInStrat: ", freeWantInStrat);
+        console.log("credit: ", credit);
+
         if (credit > freeWantInStrat) {
             IERC20Metadata(asset).safeTransfer(stratAddr, credit - freeWantInStrat);
         } else if (credit < freeWantInStrat) {
+            console.log("credit < freeWantInStrat");
             IERC20Metadata(asset).safeTransferFrom(stratAddr, address(this), freeWantInStrat - credit);
         }
 

@@ -599,7 +599,7 @@ describe('Vaults', function () {
     });
   });
 
-  xdescribe('Vault<>Strat accounting', function () {
+  describe('Vault<>Strat accounting', function () {
     it('Strat gets more money when it flows in', async function () {
       await vault.connect(wantHolder).deposit(toWantUnit('500'), wantHolderAddr);
       await strategy.harvest();
@@ -663,7 +663,7 @@ describe('Vaults', function () {
     });
   });
 
-  xdescribe('Emergency scenarios', function () {
+  describe('Emergency scenarios', function () {
     it('Vault should handle emergency shutdown', async function () {
       await vault.connect(wantHolder).deposit(toWantUnit('1000'), wantHolderAddr);
       await strategy.harvest();
