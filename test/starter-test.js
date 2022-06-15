@@ -17,9 +17,9 @@ const moveBlocksForward = async (blocks) => {
   }
 };
 
-const toWantUnit = (num, isUSDC = false) => {
-  if (isUSDC) {
-    return ethers.BigNumber.from(num * 10 ** 8);
+const toWantUnit = (num, decimals) => {
+  if (decimals) {
+    return ethers.BigNumber.from(num * 10 ** decimals);
   }
   return ethers.utils.parseEther(num);
 };
@@ -55,6 +55,8 @@ describe('Vaults', function () {
   let admin;
   let superAdmin;
   let unassignedRole;
+  let targetLTV;
+  let allowedLTVDrift;
 
   beforeEach(async function () {
     //reset network
@@ -124,9 +126,12 @@ describe('Vaults', function () {
 
     //approving LP token and vault share spend
     await want.connect(wantHolder).approve(vault.address, ethers.constants.MaxUint256);
+
+    targetLTV = await strategy.targetLTV();
+    allowedLTVDrift = await strategy.allowedLTVDrift();
   });
 
-  describe('Deploying the vault and strategy', function () {
+  xdescribe('Deploying the vault and strategy', function () {
     it('should initiate vault with a 0 balance', async function () {
       const assets = ethers.utils.parseEther('1');
       const totalBalance = await vault.totalAssets();
@@ -136,7 +141,7 @@ describe('Vaults', function () {
     });
   });
 
-  describe('Access control tests', function () {
+  xdescribe('Access control tests', function () {
     it('unassignedRole has no privileges', async function () {
       await expect(strategy.connect(unassignedRole).setEmergencyExit()).to.be.reverted;
     });
@@ -176,7 +181,7 @@ describe('Vaults', function () {
     });
   });
 
-  describe('Vault Tests', function () {
+  xdescribe('Vault Tests', function () {
     it('should allow deposits and account for them correctly', async function () {
       const userBalance = await want.balanceOf(wantHolderAddr);
       const vaultBalance = await vault.totalAssets();
@@ -564,7 +569,34 @@ describe('Vaults', function () {
   });
 
   describe('Strategy', function () {
-    it('should be able to harvest', async function () {
+    it('should allow deposits and account for them correctly', async function () {
+      const userBalance = await want.balanceOf(wantHolderAddr);
+      const vaultBalance = await vault.totalAssets();
+      const depositAmount = toWantUnit('10');
+      await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
+      const newVaultBalance = await vault.totalAssets();
+      const newUserBalance = await want.balanceOf(wantHolderAddr);
+
+      const deductedAmount = userBalance.sub(newUserBalance);
+      expect(deductedAmount).to.equal(depositAmount);
+      const tx = await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
+      const receipt = await tx.wait();
+      console.log(`gas used ${receipt.gasUsed}`);
+      expect(vaultBalance).to.equal(0);
+      // // Compound mint reduces balance by a small amount
+      // const smallDifference = depositAmount * 0.00000001; // For 1e18
+      const smallDifference = depositAmount * 0.000001; // For USDC or want with smaller decimals allow bigger difference
+      const isSmallBalanceDifference = depositAmount.sub(newVaultBalance) < smallDifference;
+      expect(isSmallBalanceDifference).to.equal(true);
+
+      let ltv = await strategy.calculateLTV();
+      expect(ltv).to.equal(0);
+      await strategy.harvest();
+      ltv = await strategy.calculateLTV();
+      expect(ltv).to.be.closeTo(targetLTV, allowedLTVDrift);
+    });
+
+    xit('should be able to harvest', async function () {
       await vault.connect(wantHolder).deposit(toWantUnit('1000'), wantHolderAddr);
       await strategy.harvest();
       await moveTimeForward(3600);
@@ -579,7 +611,7 @@ describe('Vaults', function () {
       console.log(`actual caller fee ${ethers.utils.formatEther(wftmBalDifference)}`);
     });
 
-    it('should provide yield', async function () {
+    xit('should provide yield', async function () {
       const timeToSkip = 3600;
       const initialUserBalance = await want.balanceOf(wantHolderAddr);
       const depositAmount = initialUserBalance.div(10);
@@ -599,7 +631,7 @@ describe('Vaults', function () {
     });
   });
 
-  describe('Vault<>Strat accounting', function () {
+  xdescribe('Vault<>Strat accounting', function () {
     it('Strat gets more money when it flows in', async function () {
       await vault.connect(wantHolder).deposit(toWantUnit('500'), wantHolderAddr);
       await strategy.harvest();
@@ -663,7 +695,7 @@ describe('Vaults', function () {
     });
   });
 
-  describe('Emergency scenarios', function () {
+  xdescribe('Emergency scenarios', function () {
     it('Vault should handle emergency shutdown', async function () {
       await vault.connect(wantHolder).deposit(toWantUnit('1000'), wantHolderAddr);
       await strategy.harvest();
