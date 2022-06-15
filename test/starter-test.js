@@ -574,7 +574,7 @@ describe('Vaults', function () {
     });
   });
 
-  xdescribe('Strategy', function () {
+  describe('Strategy', function () {
     it('should be able to harvest', async function () {
       await vault.connect(wantHolder).deposit(toWantUnit('1000'), wantHolderAddr);
       await strategy.harvest();

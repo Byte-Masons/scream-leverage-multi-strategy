@@ -54,6 +54,15 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
     event DepositsIncremented(address user, uint256 amount, uint256 total);
     event WithdrawalsIncremented(address user, uint256 amount, uint256 total);
     event LockedProfitDegradationUpdated(uint256 degradation);
+    event StrategyReported(
+        address indexed strategy,
+        int256 roi,
+        uint256 repayment,
+        uint256 gains,
+        uint256 losses,
+        uint256 allocated,
+        uint256 allocBPS 
+    );
 
     /**
      * @notice Initializes the vault's own 'RF' asset.
@@ -502,7 +511,8 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      */
     function report(int256 roi, uint256 repayment) external returns (uint256) {
         address stratAddr = msg.sender;
-        require(strategies[stratAddr].activation != 0);
+        StrategyParams storage strategy = strategies[stratAddr];
+        require(strategy.activation != 0);
         uint256 loss = 0;
         uint256 gain = 0;
 
@@ -511,24 +521,25 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
             _reportLoss(stratAddr, loss);
         } else {
             gain = uint256(roi);
-            strategies[stratAddr].gains += uint256(roi);
+            strategy.gains += uint256(roi);
         }
 
         int256 available = availableCapital();
         uint256 debt = 0;
         uint256 credit = 0;
+        uint256 repayment;
         if (available < 0) {
             debt = uint256(-available);
-            uint256 repayment = Math.min(debt, repayment);
+            repayment = Math.min(debt, repayment);
 
             if (repayment != 0) {
-                strategies[stratAddr].allocated -= repayment;
+                strategy.allocated -= repayment;
                 totalAllocated -= repayment;
                 debt -= repayment;
             }
         } else {
             credit = uint256(available);
-            strategies[stratAddr].allocated += credit;
+            strategy.allocated += credit;
             totalAllocated += credit;
         }
 
@@ -550,10 +561,20 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
             lockedProfit = 0;
         }
 
-        strategies[stratAddr].lastReport = block.timestamp;
+        strategy.lastReport = block.timestamp;
         lastReport = block.timestamp;
 
-        if (strategies[stratAddr].allocBPS == 0 || emergencyShutdown) {
+        emit StrategyReported(
+            stratAddr,
+            roi,
+            repayment,
+            strategy.gains,
+            strategy.losses,
+            strategy.allocated,
+            strategy.allocBPS 
+        );
+
+        if (strategy.allocBPS == 0 || emergencyShutdown) {
             return IStrategy(stratAddr).balanceOf();
         }
 
