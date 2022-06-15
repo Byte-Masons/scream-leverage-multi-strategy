@@ -611,6 +611,19 @@ describe('Vaults', function () {
       expect(ltvAfter).to.be.closeTo(newLTV, allowedLTVDrift);
     });
 
+    it('should not change leverage when LTV is within the allowed drift on deposit', async function () {
+      const depositAmount = toWantUnit('100');
+      await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
+      await strategy.harvest();
+      const ltvBefore = await strategy.calculateLTV();
+      expect(ltvBefore).to.be.closeTo(targetLTV, allowedLTVDrift);
+      const smallDepositAmount = toWantUnit('1');
+      await vault.connect(wantHolder).deposit(smallDepositAmount, wantHolderAddr);
+      await strategy.harvest();
+      const ltvAfter = await strategy.calculateLTV();
+      expect(ltvAfter).to.be.closeTo(targetLTV, allowedLTVDrift);
+    });
+
     xit('should be able to harvest', async function () {
       await vault.connect(wantHolder).deposit(toWantUnit('1000'), wantHolderAddr);
       await strategy.harvest();
