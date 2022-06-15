@@ -23,16 +23,7 @@ abstract contract ReaperBaseStrategyv3 is IStrategy, UUPSUpgradeable, AccessCont
 
     // TODO tess3rac7
     bool public emergencyExit;
-
-    struct Harvest {
-        uint256 timestamp;
-        uint256 vaultSharePrice;
-    }
-
-    Harvest[] public harvestLog;
-    uint256 public harvestLogCadence;
     uint256 public lastHarvestTimestamp;
-
     uint256 public upgradeProposalTime;
 
     /**
@@ -112,7 +103,6 @@ abstract contract ReaperBaseStrategyv3 is IStrategy, UUPSUpgradeable, AccessCont
         __UUPSUpgradeable_init();
         __AccessControlEnumerable_init();
 
-        harvestLogCadence = 1 minutes;
         totalFee = 450;
         callFee = 1000;
         treasuryFee = 9000;
@@ -136,7 +126,6 @@ abstract contract ReaperBaseStrategyv3 is IStrategy, UUPSUpgradeable, AccessCont
 
         cascadingAccess = [DEFAULT_ADMIN_ROLE, ADMIN, GUARDIAN, STRATEGIST, KEEPER];
         clearUpgradeCooldown();
-        harvestLog.push(Harvest({timestamp: block.timestamp, vaultSharePrice: IVault(_vault).convertToAssets(1 ether)}));
     }
 
     /**
@@ -185,46 +174,8 @@ abstract contract ReaperBaseStrategyv3 is IStrategy, UUPSUpgradeable, AccessCont
 
         debt = IVault(vault).report(roi, repayment);
         _adjustPosition(debt);
-
-        if (block.timestamp >= harvestLog[harvestLog.length - 1].timestamp + harvestLogCadence) {
-            harvestLog.push(
-                Harvest({timestamp: block.timestamp, vaultSharePrice: IVault(vault).convertToAssets(1 ether)})
-            );
-        }
-
         lastHarvestTimestamp = block.timestamp;
         emit StratHarvest(msg.sender);
-    }
-
-    function harvestLogLength() external view returns (uint256) {
-        return harvestLog.length;
-    }
-
-    /**
-     * @dev Traverses the harvest log backwards _n items,
-     *      and returns the average APR calculated across all the included
-     *      log entries. APR is multiplied by PERCENT_DIVISOR to retain precision.
-     */
-    function averageAPRAcrossLastNHarvests(int256 _n) external view returns (int256) {
-        require(harvestLog.length >= 2);
-
-        int256 runningAPRSum;
-        int256 numLogsProcessed;
-
-        for (uint256 i = harvestLog.length - 1; i > 0 && numLogsProcessed < _n; i--) {
-            runningAPRSum += calculateAPRUsingLogs(i - 1, i);
-            numLogsProcessed++;
-        }
-
-        return runningAPRSum / numLogsProcessed;
-    }
-
-    /**
-     * @dev Strategists and roles with higher privilege can edit the log cadence.
-     */
-    function updateHarvestLogCadence(uint256 _newCadenceInSeconds) external {
-        _atLeastRole(STRATEGIST);
-        harvestLogCadence = _newCadenceInSeconds;
     }
 
     /**
@@ -301,37 +252,6 @@ abstract contract ReaperBaseStrategyv3 is IStrategy, UUPSUpgradeable, AccessCont
         require(_newStrategistRemitter != address(0));
         strategistRemitter = _newStrategistRemitter;
         emit StrategistRemitterUpdated(_newStrategistRemitter);
-    }
-
-    /**
-     * @dev Project an APR using the vault share price change between harvests at the provided indices.
-     */
-    function calculateAPRUsingLogs(uint256 _startIndex, uint256 _endIndex) public view returns (int256) {
-        Harvest storage start = harvestLog[_startIndex];
-        Harvest storage end = harvestLog[_endIndex];
-        bool increasing = true;
-        if (end.vaultSharePrice < start.vaultSharePrice) {
-            increasing = false;
-        }
-
-        uint256 unsignedSharePriceChange;
-        if (increasing) {
-            unsignedSharePriceChange = end.vaultSharePrice - start.vaultSharePrice;
-        } else {
-            unsignedSharePriceChange = start.vaultSharePrice - end.vaultSharePrice;
-        }
-
-        uint256 unsignedPercentageChange = (unsignedSharePriceChange * 1e18) / start.vaultSharePrice;
-        uint256 timeDifference = end.timestamp - start.timestamp;
-
-        uint256 yearlyUnsignedPercentageChange = (unsignedPercentageChange * ONE_YEAR) / timeDifference;
-        yearlyUnsignedPercentageChange /= 1e14; // restore basis points precision
-
-        if (increasing) {
-            return int256(yearlyUnsignedPercentageChange);
-        }
-
-        return -int256(yearlyUnsignedPercentageChange);
     }
 
     /**
