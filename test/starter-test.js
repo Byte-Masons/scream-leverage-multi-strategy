@@ -569,7 +569,7 @@ describe('Vaults', function () {
   });
 
   describe('Strategy', function () {
-    it('should allow deposits and account for them correctly', async function () {
+    xit('should allow deposits and account for them correctly', async function () {
       const userBalance = await want.balanceOf(wantHolderAddr);
       const vaultBalance = await vault.totalAssets();
       const depositAmount = toWantUnit('10');
@@ -594,6 +594,21 @@ describe('Vaults', function () {
       await strategy.harvest();
       ltv = await strategy.calculateLTV();
       expect(ltv).to.be.closeTo(targetLTV, allowedLTVDrift);
+    });
+
+    it('should trigger deleveraging on deposit when LTV is too high', async function () {
+      const depositAmount = toWantUnit('100');
+      await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
+      await strategy.harvest();
+      const ltvBefore = await strategy.calculateLTV();
+      expect(ltvBefore).to.be.closeTo(targetLTV, allowedLTVDrift);
+      const newLTV = toWantUnit('0');
+      await strategy.setTargetLtv(newLTV);
+      const smallDepositAmount = toWantUnit('1');
+      await vault.connect(wantHolder).deposit(smallDepositAmount, wantHolderAddr);
+      await strategy.harvest();
+      const ltvAfter = await strategy.calculateLTV();
+      expect(ltvAfter).to.be.closeTo(newLTV, allowedLTVDrift);
     });
 
     xit('should be able to harvest', async function () {
