@@ -10,6 +10,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
+import {FixedPointMathLib} from "./library/FixedPointMathLib.sol";
 
 /**
  * @notice Implementation of a vault to deposit funds for yield optimizing.
@@ -18,6 +19,7 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
  */
 contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumerable {
     using SafeERC20 for IERC20Metadata;
+    using FixedPointMathLib for uint256;
 
     struct StrategyParams {
         uint256 activation; // Activation block.timestamp
@@ -153,7 +155,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
         uint256 _totalSupply = totalSupply();
         uint256 _totalAssets = totalAssets();
         if (_totalAssets == 0 || _totalSupply == 0) return assets;
-        return assets * _totalSupply / _totalAssets;
+        return assets.mulDivDown(_totalSupply, _totalAssets);
     }
 
     /**
@@ -165,7 +167,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
     function convertToAssets(uint256 shares) public view returns (uint256) {
         uint256 _totalSupply = totalSupply();
         if (_totalSupply == 0) return shares; // Initially the price is 1:1
-        return shares * totalAssets() / _totalSupply;
+        return shares.mulDivDown(totalAssets(), _totalSupply);
     }
 
     /**
@@ -236,9 +238,9 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
      * @return assets - the amount of assets given for the amount of shares.
      */
     function previewMint(uint256 shares) public view returns (uint256) {
-        uint256 assets = convertToAssets(shares);
-        if (assets == 0 && totalAssets() == 0) return shares;
-        return assets;
+        uint256 _totalSupply = totalSupply();
+        if (_totalSupply == 0) return shares; // Initially the price is 1:1
+        return shares.mulDivUp(totalAssets(), _totalSupply);
     }
 
     /**
@@ -282,9 +284,11 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
      * @return shares - the amount of shares burned for the amount of assets.
      */
     function previewWithdraw(uint256 assets) public view returns (uint256) {
+        uint256 _totalSupply = totalSupply();
         if (totalSupply() == 0) return 0;
-        uint256 shares = convertToShares(assets);
-        return shares;
+        uint256 _totalAssets = totalAssets();
+        if (_totalAssets == 0) return assets;
+        return assets.mulDivUp(_totalSupply, _totalAssets);
     }
 
     /**
