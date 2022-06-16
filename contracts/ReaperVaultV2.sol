@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 
 import "./interfaces/IStrategy.sol";
 import "./interfaces/IERC4626.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
@@ -16,7 +16,7 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
  * This is the contract that receives funds and that users interface with.
  * The yield optimizing strategy itself is implemented in a separate 'Strategy.sol' contract.
  */
-contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
+contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumerable {
     using SafeERC20 for IERC20Metadata;
 
     struct StrategyParams {
@@ -49,6 +49,21 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      */
     mapping(address => uint256) public cumulativeDeposits;
     mapping(address => uint256) public cumulativeWithdrawals;
+
+    /**
+     * Reaper Roles in increasing order of privilege.
+     * {GUARDIAN} - Can trigger emergencyShutdown.
+     * {MAINTAINER}- Can do everything except adding strategies or changing the vault TVL cap.
+     *
+     * The DEFAULT_ADMIN_ROLE (in-built access control role) will be granted to a multisig requiring 4
+     * signatures. This role would have the ability to grant any other roles.
+     *
+     * Also note that roles are cascading. So any higher privileged role should be able to perform all the functions
+     * of any lower privileged role.
+     */
+    bytes32 public constant GUARDIAN = keccak256("GUARDIAN");
+    bytes32 public constant MAINTAINER = keccak256("MAINTAINER");
+    bytes32[] private cascadingAccess;
 
     event TvlCapUpdated(uint256 newTvlCap);
     event DepositsIncremented(address user, uint256 amount, uint256 total);
@@ -84,13 +99,20 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
         address _asset,
         string memory _name,
         string memory _symbol,
-        uint256 _tvlCap
+        uint256 _tvlCap,
+        address[] memory _multisigRoles
     ) ERC20(string(_name), string(_symbol)) {
         asset = _asset;
         constructionTime = block.timestamp;
         lastReport = block.timestamp;
         tvlCap = _tvlCap;
         lockedProfitDegradation = DEGRADATION_COEFFICIENT * 46 / 10 ** 6; // 6 hours in blocks
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(DEFAULT_ADMIN_ROLE, _multisigRoles[0]);
+        _grantRole(MAINTAINER, _multisigRoles[1]);
+        _grantRole(GUARDIAN, _multisigRoles[2]);
+
+        cascadingAccess = [DEFAULT_ADMIN_ROLE, MAINTAINER, GUARDIAN];
     }
 
     /**
@@ -380,7 +402,8 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * @param strategy The strategy to add.
      * @param allocBPS The strategy allocation in basis points.
      */
-    function addStrategy(address strategy, uint256 allocBPS) external onlyOwner {
+    function addStrategy(address strategy, uint256 allocBPS) external {
+        _atLeastRole(DEFAULT_ADMIN_ROLE);
         require(!emergencyShutdown);
         require(strategy != address(0));
         require(strategies[strategy].activation == 0);
@@ -407,7 +430,8 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * @param strategy The strategy to update.
      * @param allocBPS The strategy allocation in basis points.
      */
-    function updateStrategyAllocBPS(address strategy, uint256 allocBPS) external onlyOwner {
+    function updateStrategyAllocBPS(address strategy, uint256 allocBPS) external {
+        _atLeastRole(MAINTAINER);
         require(strategies[strategy].activation != 0);
         totalAllocBPS -= strategies[strategy].allocBPS;
         strategies[strategy].allocBPS = allocBPS;
@@ -421,7 +445,10 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * @param strategy The strategy to revoke.
      */
     function revokeStrategy(address strategy) external {
-        require(msg.sender == owner() || msg.sender == strategy);
+        if (!(msg.sender == strategy)) {
+            _atLeastRole(MAINTAINER);
+        }
+        
         if (strategies[strategy].allocBPS == 0) {
             return;
         }
@@ -471,7 +498,8 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * @notice Updates the withdrawalQueue to match the addresses and order specified.
      * @param _withdrawalQueue The new withdrawalQueue to update to.
      */
-    function setWithdrawalQueue(address[] calldata _withdrawalQueue) external onlyOwner {
+    function setWithdrawalQueue(address[] calldata _withdrawalQueue) external {
+        _atLeastRole(MAINTAINER);
         uint256 queueLength = _withdrawalQueue.length;
         require(queueLength != 0);
 
@@ -595,7 +623,8 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * @notice Updates the withdrawMaxLoss which is the maximum allowed slippage.
      * @param _withdrawMaxLoss The new value, in basis points.
      */
-    function updateWithdrawMaxLoss(uint256 _withdrawMaxLoss) external onlyOwner {
+    function updateWithdrawMaxLoss(uint256 _withdrawMaxLoss) external {
+        _atLeastRole(MAINTAINER);
         require(_withdrawMaxLoss <= PERCENT_DIVISOR);
         withdrawMaxLoss = _withdrawMaxLoss;
         emit WithdrawMaxLossUpdated(withdrawMaxLoss);
@@ -606,7 +635,8 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * @dev pass in max value of uint to effectively remove TVL cap.
      * @param newTvlCap The new tvl cap.
      */
-    function updateTvlCap(uint256 newTvlCap) public onlyOwner {
+    function updateTvlCap(uint256 newTvlCap) public {
+        _atLeastRole(DEFAULT_ADMIN_ROLE);
         tvlCap = newTvlCap;
         emit TvlCapUpdated(tvlCap);
     }
@@ -614,7 +644,8 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      /**
      * @notice Helper function to remove TVL cap.
      */
-    function removeTvlCap() external onlyOwner {
+    function removeTvlCap() external {
+        _atLeastRole(DEFAULT_ADMIN_ROLE);
         updateTvlCap(type(uint256).max);
     }
 
@@ -631,7 +662,8 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * goes back into Normal Operation.
      * @param active If emergencyShutdown is active or not.
      */
-    function setEmergencyShutdown(bool active) external onlyOwner {
+    function setEmergencyShutdown(bool active) external {
+        _atLeastRole(GUARDIAN);
         emergencyShutdown = active;
         emit EmergencyShutdown(emergencyShutdown);
     }
@@ -664,7 +696,8 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * @notice Rescues random funds stuck that the strat can't handle.
      * @param token address of the asset to rescue.
      */
-    function inCaseTokensGetStuck(address token) external onlyOwner {
+    function inCaseTokensGetStuck(address token) external {
+        _atLeastRole(MAINTAINER);
         require(token != asset, "!asset");
 
         uint256 amount = IERC20Metadata(token).balanceOf(address(this));
@@ -686,9 +719,38 @@ contract ReaperVaultV2 is IERC4626, ERC20, Ownable, ReentrancyGuard {
      * match the same decimals as the underlying asset used.
      * @param degradation - The rate of degradation in percent per second scaled to 1e18.
      */
-    function setLockedProfitDegradation(uint256 degradation) external onlyOwner {
+    function setLockedProfitDegradation(uint256 degradation) external {
+        _atLeastRole(MAINTAINER);
         require(degradation <= DEGRADATION_COEFFICIENT);
         lockedProfitDegradation = degradation;
         emit LockedProfitDegradationUpdated(degradation);
+    }
+
+    /**
+     * @notice Internal function that checks cascading role privileges. Any higher privileged role
+     * should be able to perform all the functions of any lower privileged role. This is
+     * accomplished using the {cascadingAccess} array that lists all roles from most privileged
+     * to least privileged.
+     * @param role - The role in bytes from the keccak256 hash of the role name
+     */
+    function _atLeastRole(bytes32 role) internal view {
+        uint256 numRoles = cascadingAccess.length;
+        uint256 specifiedRoleIndex;
+        for (uint256 i = 0; i < numRoles; i++) {
+            if (role == cascadingAccess[i]) {
+                specifiedRoleIndex = i;
+                break;
+            } else if (i == numRoles - 1) {
+                revert();
+            }
+        }
+
+        for (uint256 i = 0; i <= specifiedRoleIndex; i++) {
+            if (hasRole(cascadingAccess[i], msg.sender)) {
+                break;
+            } else if (i == specifiedRoleIndex) {
+                revert();
+            }
+        }
     }
 }

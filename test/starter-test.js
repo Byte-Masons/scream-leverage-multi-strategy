@@ -41,6 +41,7 @@ describe('Vaults', function () {
   const superAdminAddress = '0x04C710a1E8a738CDf7cAD3a52Ba77A784C35d8CE';
   const adminAddress = '0x539eF36C804e4D735d8cAb69e8e441c12d4B88E0';
   const guardianAddress = '0xf20E25f2AB644C8ecBFc992a6829478a85A98F2c';
+  const maintainerAddress = '0x81876677843D00a7D792E1617459aC2E93202576';
   const wftmAddress = '0x21be370D5312f44cB42ce377BC9b8a0cEF1A4C83';
   const wantAddress = wftmAddress;
   const scWant = '0xb681F4928658a8d54bd4773F5B5DEAb35d63c3CF';
@@ -52,6 +53,7 @@ describe('Vaults', function () {
   let wantHolder;
   let strategist;
   let guardian;
+  let maintainer;
   let admin;
   let superAdmin;
   let unassignedRole;
@@ -66,7 +68,7 @@ describe('Vaults', function () {
         {
           forking: {
             jsonRpcUrl: 'https://rpcapi-tracing.fantom.network/',
-            blockNumber: 39545675,
+            blockNumber: 40582443,
           },
         },
       ],
@@ -99,6 +101,11 @@ describe('Vaults', function () {
       params: [guardianAddress],
     });
     guardian = await ethers.provider.getSigner(guardianAddress);
+    await hre.network.provider.request({
+      method: 'hardhat_impersonateAccount',
+      params: [maintainerAddress],
+    });
+    maintainer = await ethers.provider.getSigner(maintainerAddress);
 
     //get artifacts
     Vault = await ethers.getContractFactory('ReaperVaultV2');
@@ -106,7 +113,11 @@ describe('Vaults', function () {
     Want = await ethers.getContractFactory('@openzeppelin/contracts/token/ERC20/ERC20.sol:ERC20');
 
     //deploy contracts
-    vault = await Vault.deploy(wantAddress, 'TOMB-MAI Tomb Crypt', 'rf-TOMB-MAI', ethers.constants.MaxUint256);
+    vault = await Vault.deploy(wantAddress, 'WFTM Crypt', 'rf-WFTM', ethers.constants.MaxUint256, [
+      superAdminAddress,
+      maintainerAddress,
+      guardianAddress,
+    ]);
 
     strategy = await hre.upgrades.deployProxy(
       Strategy,
@@ -141,7 +152,7 @@ describe('Vaults', function () {
     });
   });
 
-  xdescribe('Access control tests', function () {
+  xdescribe('Strategy Access control tests', function () {
     it('unassignedRole has no privileges', async function () {
       await expect(strategy.connect(unassignedRole).setEmergencyExit()).to.be.reverted;
     });
@@ -178,6 +189,60 @@ describe('Vaults', function () {
       await tx.wait();
 
       await expect(strategy.connect(superAdmin).setEmergencyExit()).to.not.be.reverted;
+    });
+  });
+
+  describe('Vault Access control tests', function () {
+    it('unassignedRole has no privileges', async function () {
+      await expect(vault.connect(unassignedRole).addStrategy(strategy.address, 1000)).to.be.reverted;
+
+      await expect(vault.connect(unassignedRole).updateStrategyAllocBPS(strategy.address, 1000)).to.be.reverted;
+
+      await expect(vault.connect(unassignedRole).revokeStrategy(strategy.address)).to.be.reverted;
+
+      await expect(vault.connect(unassignedRole).setEmergencyShutdown(true)).to.be.reverted;
+    });
+
+    it('guardian has right privileges', async function () {
+      const tx = await owner.sendTransaction({
+        to: guardianAddress,
+        value: ethers.utils.parseEther('10'),
+      });
+      await tx.wait();
+
+      await expect(vault.connect(guardian).addStrategy(strategy.address, 1000)).to.be.reverted;
+
+      await expect(vault.connect(guardian).updateStrategyAllocBPS(strategy.address, 1000)).to.be.reverted;
+
+      await expect(vault.connect(guardian).revokeStrategy(strategy.address)).to.be.reverted;
+
+      await expect(vault.connect(guardian).setEmergencyShutdown(true)).to.not.be.reverted;
+    });
+
+    it('maintainer has right privileges', async function () {
+      const tx = await owner.sendTransaction({
+        to: maintainerAddress,
+        value: ethers.utils.parseEther('10'),
+      });
+      await tx.wait();
+
+      await expect(vault.connect(maintainer).addStrategy(strategy.address, 1000)).to.be.reverted;
+
+      await expect(vault.connect(maintainer).updateStrategyAllocBPS(strategy.address, 1000)).to.not.be.reverted;
+
+      await expect(vault.connect(maintainer).revokeStrategy(strategy.address)).to.not.be.reverted;
+
+      await expect(vault.connect(maintainer).setEmergencyShutdown(true)).to.not.be.reverted;
+    });
+
+    it('superAdmin has right privileges', async function () {
+      await expect(vault.connect(superAdmin).addStrategy(strategy.address, 1000)).to.not.be.reverted;
+
+      await expect(vault.connect(superAdmin).updateStrategyAllocBPS(strategy.address, 1000)).to.not.be.reverted;
+
+      await expect(vault.connect(superAdmin).revokeStrategy(strategy.address)).to.not.be.reverted;
+
+      await expect(vault.connect(superAdmin).setEmergencyShutdown(true)).to.not.be.reverted;
     });
   });
 
@@ -568,8 +633,8 @@ describe('Vaults', function () {
     });
   });
 
-  describe('Strategy', function () {
-    xit('should allow deposits and account for them correctly', async function () {
+  xdescribe('Strategy', function () {
+    it('should allow deposits and account for them correctly', async function () {
       const userBalance = await want.balanceOf(wantHolderAddr);
       const vaultBalance = await vault.totalAssets();
       const depositAmount = toWantUnit('10');
@@ -596,7 +661,7 @@ describe('Vaults', function () {
       expect(ltv).to.be.closeTo(targetLTV, allowedLTVDrift);
     });
 
-    xit('should trigger deleveraging on deposit when LTV is too high', async function () {
+    it('should trigger deleveraging on deposit when LTV is too high', async function () {
       const depositAmount = toWantUnit('100');
       await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
       await strategy.harvest();
@@ -611,7 +676,7 @@ describe('Vaults', function () {
       expect(ltvAfter).to.be.closeTo(newLTV, allowedLTVDrift);
     });
 
-    xit('should not change leverage when LTV is within the allowed drift on deposit', async function () {
+    it('should not change leverage when LTV is within the allowed drift on deposit', async function () {
       const depositAmount = toWantUnit('100');
       await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
       await strategy.harvest();
@@ -648,7 +713,52 @@ describe('Vaults', function () {
       expect(isSmallBalanceDifference).to.equal(true);
     });
 
-    xit('should be able to harvest', async function () {
+    it('should trigger leveraging on withdraw when LTV is too low', async function () {
+      const startingLTV = toWantUnit('0.4');
+      await strategy.setTargetLtv(startingLTV);
+      const depositAmount = toWantUnit('100');
+
+      await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
+      await strategy.harvest();
+      const ltvBefore = await strategy.calculateLTV();
+      expect(ltvBefore).to.be.closeTo(startingLTV, allowedLTVDrift);
+      const newLTV = targetLTV;
+      await strategy.setTargetLtv(newLTV);
+      const smallWithdrawAmount = toWantUnit('1');
+      const userBalance = await want.balanceOf(wantHolderAddr);
+      await vault.connect(wantHolder).withdraw(smallWithdrawAmount, wantHolderAddr, wantHolderAddr);
+      await strategy.harvest();
+      const userBalanceAfterWithdraw = await want.balanceOf(wantHolderAddr);
+      const ltvAfter = await strategy.calculateLTV();
+      expect(ltvAfter).to.be.closeTo(newLTV, allowedLTVDrift);
+
+      const expectedBalance = userBalance.add(smallWithdrawAmount);
+
+      expect(userBalanceAfterWithdraw).to.be.closeTo(expectedBalance, toWantUnit('0.00001'));
+    });
+
+    it('should trigger deleveraging on withdraw when LTV is too high', async function () {
+      const depositAmount = toWantUnit('100');
+      await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
+      await strategy.harvest();
+      const ltvBefore = await strategy.calculateLTV();
+      expect(ltvBefore).to.be.closeTo(targetLTV, allowedLTVDrift);
+      const newLTV = toWantUnit('0');
+      await strategy.setTargetLtv(newLTV);
+      const smallWithdrawAmount = toWantUnit('1');
+      const userBalance = await want.balanceOf(wantHolderAddr);
+      await vault.connect(wantHolder).withdraw(smallWithdrawAmount, wantHolderAddr, wantHolderAddr);
+      await strategy.harvest();
+      const userBalanceAfterWithdraw = await want.balanceOf(wantHolderAddr);
+      const ltvAfter = await strategy.calculateLTV();
+      expect(ltvAfter).to.be.closeTo(newLTV, allowedLTVDrift);
+
+      const expectedBalance = userBalance.add(smallWithdrawAmount);
+
+      expect(userBalanceAfterWithdraw).to.be.closeTo(expectedBalance, toWantUnit('0.00001'));
+    });
+
+    it('should be able to harvest', async function () {
       await vault.connect(wantHolder).deposit(toWantUnit('1000'), wantHolderAddr);
       await strategy.harvest();
       await moveTimeForward(3600);
@@ -663,7 +773,47 @@ describe('Vaults', function () {
       console.log(`actual caller fee ${ethers.utils.formatEther(wftmBalDifference)}`);
     });
 
-    xit('should provide yield', async function () {
+    it('should not change leverage on withdraw when still in the allowed LTV', async function () {
+      const depositAmount = toWantUnit('100');
+      await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
+      await strategy.harvest();
+      const ltvBefore = await strategy.calculateLTV();
+      expect(ltvBefore).to.be.closeTo(targetLTV, allowedLTVDrift);
+
+      const userBalance = await want.balanceOf(wantHolderAddr);
+      const smallWithdrawAmount = toWantUnit('0.5');
+      await vault.connect(wantHolder).withdraw(smallWithdrawAmount, wantHolderAddr, wantHolderAddr);
+      await strategy.harvest();
+      const userBalanceAfterWithdraw = await want.balanceOf(wantHolderAddr);
+      const ltvAfter = await strategy.calculateLTV();
+      expect(ltvAfter).to.be.closeTo(targetLTV, allowedLTVDrift);
+
+      const expectedBalance = userBalance.add(smallWithdrawAmount);
+
+      expect(userBalanceAfterWithdraw).to.be.closeTo(expectedBalance, toWantUnit('0.00001'));
+    });
+
+    it('should handle small deposit + withdraw', async function () {
+      const userBalance = await want.balanceOf(wantHolderAddr);
+      // "0.0000000000001" for 1e18
+      const depositAmount = toWantUnit('0.01');
+
+      await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
+      await strategy.harvest();
+
+      await moveTimeForward(3600);
+      await strategy.updateBalance();
+
+      await vault.connect(wantHolder).withdraw(depositAmount, wantHolderAddr, wantHolderAddr);
+      await strategy.harvest();
+      // const newUserVaultBalance = await vault.balanceOf(wantHolderAddr);
+      // const userBalanceAfterWithdraw = await want.balanceOf(wantHolderAddr);
+      // const expectedBalance = userBalance;
+      // const isSmallBalanceDifference = expectedBalance.sub(userBalanceAfterWithdraw) < 100;
+      // expect(isSmallBalanceDifference).to.equal(true);
+    });
+
+    it('should provide yield', async function () {
       const timeToSkip = 3600;
       const initialUserBalance = await want.balanceOf(wantHolderAddr);
       const depositAmount = initialUserBalance.div(10);

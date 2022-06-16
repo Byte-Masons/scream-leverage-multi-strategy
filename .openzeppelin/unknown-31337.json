@@ -8,7 +8,7 @@
     },
     {
       "address": "0x8198f5d8F8CfFE8f9C413d98a0A55aEB8ab9FbB7",
-      "txHash": "0x355a67c0cb4a6d952ed4b9b8593aa9d501c72961dc1d6cf441e314d72d0473ae",
+      "txHash": "0x6a14b244be344d90ad7dd96d80426f8039e0a4075c48dc29f8a5d6e2c49f8e6e",
       "kind": "uups"
     }
   ],
@@ -555,9 +555,9 @@
         }
       }
     },
-    "89804c9a28c91b693515644bc72581c0e4a7e204bad317d86a3d89efe7eaed81": {
+    "46924a47565eb80baa9913827a2d066b8c5f927ea82bbcb8f12e20bf11be45c6": {
       "address": "0x36b58F5C1969B7b6591D752ea6F5486D069010AB",
-      "txHash": "0xa47c632e1ba73c7bbf46fd18f08ce7e8e24484a27a1c750b79ffe540b446d190",
+      "txHash": "0x79870786538aee1fac109371d9f760bf35e14ad7254536144d943deaeb68df3d",
       "layout": {
         "storage": [
           {
@@ -741,7 +741,7 @@
             "label": "cWant",
             "offset": 0,
             "slot": "312",
-            "type": "t_contract(CErc20I)9874",
+            "type": "t_contract(CErc20I)11465",
             "contract": "ReaperStrategyScreamLeverage",
             "src": "contracts\\ReaperStrategyScreamLeverage.sol:30"
           },
@@ -749,7 +749,7 @@
             "label": "comptroller",
             "offset": 0,
             "slot": "313",
-            "type": "t_contract(IComptroller)10220",
+            "type": "t_contract(IComptroller)11811",
             "contract": "ReaperStrategyScreamLeverage",
             "src": "contracts\\ReaperStrategyScreamLeverage.sol:38"
           },
@@ -863,11 +863,11 @@
             "label": "bytes32",
             "numberOfBytes": "32"
           },
-          "t_contract(CErc20I)9874": {
+          "t_contract(CErc20I)11465": {
             "label": "contract CErc20I",
             "numberOfBytes": "20"
           },
-          "t_contract(IComptroller)10220": {
+          "t_contract(IComptroller)11811": {
             "label": "contract IComptroller",
             "numberOfBytes": "20"
           },
