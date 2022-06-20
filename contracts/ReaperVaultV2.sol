@@ -249,7 +249,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
      * @param receiver The receiver of the minted shares.
      * @return assets - the amount of assets transferred from the mint.
      */
-    function mint(uint256 shares, address receiver) public returns (uint256) {
+    function mint(uint256 shares, address receiver) external nonReentrant returns (uint256) {
         require(!emergencyShutdown);
         require(shares != 0, "please provide amount");
         uint256 assets = previewMint(shares);
@@ -298,7 +298,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
      * @param owner The owner of the shares to withdraw.
      * @return shares - the amount of shares burned.
      */
-    function withdraw(uint256 assets, address receiver, address owner) external returns (uint256 shares) {
+    function withdraw(uint256 assets, address receiver, address owner) external nonReentrant returns (uint256 shares) {
         require(assets > 0, "please provide amount");
         shares = previewWithdraw(assets);
         _withdraw(assets, shares, receiver, owner);
