@@ -133,7 +133,16 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
      * @return totalManagedAssets - the total amount of assets managed by the vault.
      */
     function totalAssets() public view returns (uint256) {
-        return IERC20Metadata(asset).balanceOf(address(this)) + totalAllocated - _calculateLockedProfit();
+        return IERC20Metadata(asset).balanceOf(address(this)) + totalAllocated;
+    }
+
+    /**
+     * @notice It calculates the amount of free funds available after profit locking.
+     * For calculating share price and making withdrawals.
+     * @return freeFunds - the total amount of free funds available.
+     */
+    function _freeFunds() internal view returns (uint256) {
+        return totalAssets() - _calculateLockedProfit();
     }
 
     /**
@@ -162,9 +171,9 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
      */
     function convertToShares(uint256 assets) public view returns (uint256) {
         uint256 _totalSupply = totalSupply();
-        uint256 _totalAssets = totalAssets();
-        if (_totalAssets == 0 || _totalSupply == 0) return assets;
-        return assets.mulDivDown(_totalSupply, _totalAssets);
+        uint256 freeFunds = _freeFunds();
+        if (freeFunds == 0 || _totalSupply == 0) return assets;
+        return assets.mulDivDown(_totalSupply, freeFunds);
     }
 
     /**
@@ -176,7 +185,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
     function convertToAssets(uint256 shares) public view returns (uint256) {
         uint256 _totalSupply = totalSupply();
         if (_totalSupply == 0) return shares; // Initially the price is 1:1
-        return shares.mulDivDown(totalAssets(), _totalSupply);
+        return shares.mulDivDown(_freeFunds(), _totalSupply);
     }
 
     /**
@@ -249,7 +258,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
     function previewMint(uint256 shares) public view returns (uint256) {
         uint256 _totalSupply = totalSupply();
         if (_totalSupply == 0) return shares; // Initially the price is 1:1
-        return shares.mulDivUp(totalAssets(), _totalSupply);
+        return shares.mulDivUp(_freeFunds(), _totalSupply);
     }
 
     /**
@@ -265,7 +274,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
         uint256 _pool = totalAssets();
         require(_pool + assets <= tvlCap, "vault is full!");
 
-        if (totalAssets() == 0) assets = shares;
+        if (_freeFunds() == 0) assets = shares;
 
         IERC20Metadata(asset).safeTransferFrom(msg.sender, address(this), assets);
 
@@ -295,9 +304,9 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
     function previewWithdraw(uint256 assets) public view returns (uint256) {
         uint256 _totalSupply = totalSupply();
         if (totalSupply() == 0) return 0;
-        uint256 _totalAssets = totalAssets();
-        if (_totalAssets == 0) return assets;
-        return assets.mulDivUp(_totalSupply, _totalAssets);
+        uint256 freeFunds = _freeFunds();
+        if (freeFunds == 0) return assets;
+        return assets.mulDivUp(_totalSupply, freeFunds);
     }
 
     /**
