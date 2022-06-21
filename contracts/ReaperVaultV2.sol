@@ -54,17 +54,20 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
 
     /**
      * Reaper Roles in increasing order of privilege.
-     * {GUARDIAN} - Can trigger emergencyShutdown.
-     * {MAINTAINER}- Can do everything except adding strategies or changing the vault TVL cap.
+     * {STRATEGIST} - Role conferred to strategists, allows for tweaking non-critical params.
+     * {GUARDIAN} - Multisig requiring 2 signatures for emergency measures such as pausing and panicking.
+     * {ADMIN}- Multisig requiring 3 signatures for unpausing and changing TVL cap.
      *
      * The DEFAULT_ADMIN_ROLE (in-built access control role) will be granted to a multisig requiring 4
-     * signatures. This role would have the ability to grant any other roles.
+     * signatures. This role would have the ability to add strategies, as well as the ability to grant any other
+     * roles.
      *
      * Also note that roles are cascading. So any higher privileged role should be able to perform all the functions
      * of any lower privileged role.
      */
+    bytes32 public constant STRATEGIST = keccak256("STRATEGIST");
     bytes32 public constant GUARDIAN = keccak256("GUARDIAN");
-    bytes32 public constant MAINTAINER = keccak256("MAINTAINER");
+    bytes32 public constant ADMIN = keccak256("ADMIN");
     bytes32[] private cascadingAccess;
 
     event TvlCapUpdated(uint256 newTvlCap);
@@ -102,6 +105,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
         string memory _name,
         string memory _symbol,
         uint256 _tvlCap,
+        address[] memory _strategists,
         address[] memory _multisigRoles
     ) ERC20(string(_name), string(_symbol)) {
         asset = _asset;
@@ -109,12 +113,17 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
         lastReport = block.timestamp;
         tvlCap = _tvlCap;
         lockedProfitDegradation = DEGRADATION_COEFFICIENT * 46 / 10 ** 6; // 6 hours in blocks
+
+        for (uint256 i = 0; i < _strategists.length; i++) {
+            _grantRole(STRATEGIST, _strategists[i]);
+        }
+
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(DEFAULT_ADMIN_ROLE, _multisigRoles[0]);
-        _grantRole(MAINTAINER, _multisigRoles[1]);
+        _grantRole(ADMIN, _multisigRoles[1]);
         _grantRole(GUARDIAN, _multisigRoles[2]);
 
-        cascadingAccess = [DEFAULT_ADMIN_ROLE, MAINTAINER, GUARDIAN];
+        cascadingAccess = [DEFAULT_ADMIN_ROLE, ADMIN, GUARDIAN, STRATEGIST];
     }
 
     /**
@@ -435,7 +444,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
      * @param allocBPS The strategy allocation in basis points.
      */
     function updateStrategyAllocBPS(address strategy, uint256 allocBPS) external {
-        _atLeastRole(MAINTAINER);
+        _atLeastRole(STRATEGIST);
         require(strategies[strategy].activation != 0);
         totalAllocBPS -= strategies[strategy].allocBPS;
         strategies[strategy].allocBPS = allocBPS;
@@ -450,7 +459,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
      */
     function revokeStrategy(address strategy) external {
         if (!(msg.sender == strategy)) {
-            _atLeastRole(MAINTAINER);
+            _atLeastRole(STRATEGIST);
         }
         
         if (strategies[strategy].allocBPS == 0) {
@@ -503,7 +512,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
      * @param _withdrawalQueue The new withdrawalQueue to update to.
      */
     function setWithdrawalQueue(address[] calldata _withdrawalQueue) external {
-        _atLeastRole(MAINTAINER);
+        _atLeastRole(STRATEGIST);
         uint256 queueLength = _withdrawalQueue.length;
         require(queueLength != 0);
 
@@ -628,7 +637,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
      * @param _withdrawMaxLoss The new value, in basis points.
      */
     function updateWithdrawMaxLoss(uint256 _withdrawMaxLoss) external {
-        _atLeastRole(MAINTAINER);
+        _atLeastRole(STRATEGIST);
         require(_withdrawMaxLoss <= PERCENT_DIVISOR);
         withdrawMaxLoss = _withdrawMaxLoss;
         emit WithdrawMaxLossUpdated(withdrawMaxLoss);
@@ -640,7 +649,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
      * @param newTvlCap The new tvl cap.
      */
     function updateTvlCap(uint256 newTvlCap) public {
-        _atLeastRole(DEFAULT_ADMIN_ROLE);
+        _atLeastRole(ADMIN);
         tvlCap = newTvlCap;
         emit TvlCapUpdated(tvlCap);
     }
@@ -649,7 +658,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
      * @notice Helper function to remove TVL cap.
      */
     function removeTvlCap() external {
-        _atLeastRole(DEFAULT_ADMIN_ROLE);
+        _atLeastRole(ADMIN);
         updateTvlCap(type(uint256).max);
     }
 
@@ -667,7 +676,11 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
      * @param active If emergencyShutdown is active or not.
      */
     function setEmergencyShutdown(bool active) external {
-        _atLeastRole(GUARDIAN);
+        if (active == true) {
+            _atLeastRole(GUARDIAN);
+        } else {
+            _atLeastRole(ADMIN);
+        }
         emergencyShutdown = active;
         emit EmergencyShutdown(emergencyShutdown);
     }
@@ -701,7 +714,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
      * @param token address of the asset to rescue.
      */
     function inCaseTokensGetStuck(address token) external {
-        _atLeastRole(MAINTAINER);
+        _atLeastRole(STRATEGIST);
         require(token != asset, "!asset");
 
         uint256 amount = IERC20Metadata(token).balanceOf(address(this));
@@ -724,7 +737,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
      * @param degradation - The rate of degradation in percent per second scaled to 1e18.
      */
     function setLockedProfitDegradation(uint256 degradation) external {
-        _atLeastRole(MAINTAINER);
+        _atLeastRole(STRATEGIST);
         require(degradation <= DEGRADATION_COEFFICIENT);
         lockedProfitDegradation = degradation;
         emit LockedProfitDegradationUpdated(degradation);
