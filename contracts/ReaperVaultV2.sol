@@ -404,7 +404,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
      * @notice Function for various UIs to display the current value of one of our yield tokens.
      * @return pricePerFullShare - a uint256 of how much underlying asset one vault share represents.
      */
-    function getPricePerFullShare() public view returns (uint256) {
+    function getPricePerFullShare() external view returns (uint256) {
         return convertToAssets(10 ** decimals());
     }
 
