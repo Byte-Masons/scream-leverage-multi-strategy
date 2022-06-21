@@ -227,7 +227,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
      * @return shares - the amount of shares issued from the deposit.
      */
     function deposit(uint256 assets, address receiver) public nonReentrant returns (uint256 shares) {
-        require(!emergencyShutdown);
+        require(!emergencyShutdown, "Cannot deposit during emergency shutdown");
         require(assets != 0, "please provide amount");
         uint256 _pool = totalAssets();
         require(_pool + assets <= tvlCap, "vault is full!");
@@ -268,7 +268,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
      * @return assets - the amount of assets transferred from the mint.
      */
     function mint(uint256 shares, address receiver) external nonReentrant returns (uint256) {
-        require(!emergencyShutdown);
+        require(!emergencyShutdown, "Cannot mint during emergency shutdown");
         require(shares != 0, "please provide amount");
         uint256 assets = previewMint(shares);
         uint256 _pool = totalAssets();
@@ -371,7 +371,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
                 assets = vaultBalance;
             }
 
-            require(totalLoss <= ((assets + totalLoss) * withdrawMaxLoss) / PERCENT_DIVISOR);
+            require(totalLoss <= ((assets + totalLoss) * withdrawMaxLoss) / PERCENT_DIVISOR, "Cannot exceed the maximum allowed withdraw slippage");
         }
 
         IERC20Metadata(asset).safeTransfer(receiver, assets);
@@ -435,12 +435,12 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
      */
     function addStrategy(address strategy, uint256 allocBPS) external {
         _atLeastRole(DEFAULT_ADMIN_ROLE);
-        require(!emergencyShutdown);
-        require(strategy != address(0));
-        require(strategies[strategy].activation == 0);
-        require(address(this) == IStrategy(strategy).vault());
-        require(asset == IStrategy(strategy).want());
-        require(allocBPS + totalAllocBPS <= PERCENT_DIVISOR);
+        require(!emergencyShutdown, "Cannot add a strategy during emergency shutdown");
+        require(strategy != address(0), "Cannot add the zero address");
+        require(strategies[strategy].activation == 0, "Strategy must not be added already");
+        require(address(this) == IStrategy(strategy).vault(), "The strategy must use this vault");
+        require(asset == IStrategy(strategy).want(), "The strategy must use the same want");
+        require(allocBPS + totalAllocBPS <= PERCENT_DIVISOR, "Total allocation points are over 100%");
 
         strategies[strategy] = StrategyParams({
             activation: block.timestamp,
@@ -463,11 +463,11 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
      */
     function updateStrategyAllocBPS(address strategy, uint256 allocBPS) external {
         _atLeastRole(STRATEGIST);
-        require(strategies[strategy].activation != 0);
+        require(strategies[strategy].activation != 0, "Strategy must be active");
         totalAllocBPS -= strategies[strategy].allocBPS;
         strategies[strategy].allocBPS = allocBPS;
         totalAllocBPS += allocBPS;
-        require(totalAllocBPS <= PERCENT_DIVISOR);
+        require(totalAllocBPS <= PERCENT_DIVISOR, "Total allocation points are over 100%");
         emit StrategyAllocBPSUpdated(strategy, allocBPS);
     }
 
@@ -532,13 +532,13 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
     function setWithdrawalQueue(address[] calldata _withdrawalQueue) external {
         _atLeastRole(STRATEGIST);
         uint256 queueLength = _withdrawalQueue.length;
-        require(queueLength != 0);
+        require(queueLength != 0, "Cannot set an empty withdrawal queue");
 
         delete withdrawalQueue;
         for (uint256 i = 0; i < queueLength; i = _uncheckedInc(i)) {
             address strategy = _withdrawalQueue[i];
             StrategyParams storage params = strategies[strategy];
-            require(params.activation != 0);
+            require(params.activation != 0, "Can only use active strategies in the withdrawal queue");
             withdrawalQueue.push(strategy);
         }
         emit UpdateWithdrawalQueue(withdrawalQueue);
@@ -553,7 +553,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
         StrategyParams storage stratParams = strategies[strategy];
         // Loss can only be up the amount of capital allocated to the strategy
         uint256 allocation = stratParams.allocated;
-        require(loss <= allocation);
+        require(loss <= allocation, "Strategy cannot loose more than what was allocated to it");
 
         if (totalAllocBPS != 0) {
             // reduce strat's allocBPS proportional to loss
@@ -582,7 +582,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
     function report(int256 roi, uint256 repayment) external returns (uint256) {
         address stratAddr = msg.sender;
         StrategyParams storage strategy = strategies[stratAddr];
-        require(strategy.activation != 0);
+        require(strategy.activation != 0, "Only active strategies can report");
         uint256 loss = 0;
         uint256 gain = 0;
 
@@ -656,7 +656,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
      */
     function updateWithdrawMaxLoss(uint256 _withdrawMaxLoss) external {
         _atLeastRole(STRATEGIST);
-        require(_withdrawMaxLoss <= PERCENT_DIVISOR);
+        require(_withdrawMaxLoss <= PERCENT_DIVISOR, "withdrawMaxLoss cannot be greater than 100%");
         withdrawMaxLoss = _withdrawMaxLoss;
         emit WithdrawMaxLossUpdated(withdrawMaxLoss);
     }
@@ -756,7 +756,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
      */
     function setLockedProfitDegradation(uint256 degradation) external {
         _atLeastRole(STRATEGIST);
-        require(degradation <= DEGRADATION_COEFFICIENT);
+        require(degradation <= DEGRADATION_COEFFICIENT, "Degradation cannot be more than 100%");
         lockedProfitDegradation = degradation;
         emit LockedProfitDegradationUpdated(degradation);
     }
