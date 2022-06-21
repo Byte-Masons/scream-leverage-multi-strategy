@@ -115,7 +115,7 @@ abstract contract ReaperBaseStrategyv3 is IStrategy, UUPSUpgradeable, AccessCont
         want = _want;
         IERC20Upgradeable(want).safeApprove(vault, type(uint256).max);
 
-        for (uint256 i = 0; i < _strategists.length; i++) {
+        for (uint256 i = 0; i < _strategists.length; i = _uncheckedInc(i)) {
             _grantRole(STRATEGIST, _strategists[i]);
         }
 
@@ -296,7 +296,7 @@ abstract contract ReaperBaseStrategyv3 is IStrategy, UUPSUpgradeable, AccessCont
     function _atLeastRole(bytes32 role) internal view {
         uint256 numRoles = cascadingAccess.length;
         uint256 specifiedRoleIndex;
-        for (uint256 i = 0; i < numRoles; i++) {
+        for (uint256 i = 0; i < numRoles; i = _uncheckedInc(i)) {
             if (role == cascadingAccess[i]) {
                 specifiedRoleIndex = i;
                 break;
@@ -305,7 +305,7 @@ abstract contract ReaperBaseStrategyv3 is IStrategy, UUPSUpgradeable, AccessCont
             }
         }
 
-        for (uint256 i = 0; i <= specifiedRoleIndex; i++) {
+        for (uint256 i = 0; i <= specifiedRoleIndex; i = _uncheckedInc(i)) {
             if (hasRole(cascadingAccess[i], msg.sender)) {
                 break;
             } else if (i == specifiedRoleIndex) {
@@ -377,4 +377,10 @@ abstract contract ReaperBaseStrategyv3 is IStrategy, UUPSUpgradeable, AccessCont
             int256 roi,
             uint256 repayment
         );
+
+    function _uncheckedInc(uint256 i) internal pure returns (uint256) {
+        unchecked {
+            return i + 1;
+        }
+    }
 }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.0;
+pragma solidity 0.8.11;
 
 import "./interfaces/IStrategy.sol";
 import "./interfaces/IERC4626.sol";
@@ -33,7 +33,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
     mapping(address => StrategyParams) public strategies;  // mapping strategies to their strategy parameters
     address[] public withdrawalQueue; // Ordering that `withdraw` uses to determine which strategies to pull funds from
     uint256 public constant DEGRADATION_COEFFICIENT = 10 ** 18; // The unit for calculating profit degradation.
-    uint256 public constant PERCENT_DIVISOR = 10000; // Basis point unit, for calculating slippage and strategy allocations
+    uint256 public constant PERCENT_DIVISOR = 10_000; // Basis point unit, for calculating slippage and strategy allocations
     uint256 public tvlCap; // The maximum amount of assets the vault can hold while still allowing deposits
     uint256 public totalAllocBPS; // Sum of allocBPS across all strategies (in BPS, <= 10k)
     uint256 public totalAllocated; // Amount of tokens that have been allocated to all strategies
@@ -114,7 +114,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
         tvlCap = _tvlCap;
         lockedProfitDegradation = DEGRADATION_COEFFICIENT * 46 / 10 ** 6; // 6 hours in blocks
 
-        for (uint256 i = 0; i < _strategists.length; i++) {
+        for (uint256 i = 0; i < _strategists.length; i = _uncheckedInc(i)) {
             _grantRole(STRATEGIST, _strategists[i]);
         }
 
@@ -308,7 +308,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
      * @return shares - the amount of shares burned.
      */
     function withdraw(uint256 assets, address receiver, address owner) external nonReentrant returns (uint256 shares) {
-        require(assets > 0, "please provide amount");
+        require(assets != 0, "please provide amount");
         shares = previewWithdraw(assets);
         _withdraw(assets, shares, receiver, owner);
         return shares;
@@ -329,7 +329,8 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
             uint256 totalLoss = 0;
             uint256 queueLength = withdrawalQueue.length;
             uint256 vaultBalance = 0;
-            for (uint256 i = 0; i < queueLength; i++) {
+            
+            for (uint256 i = 0; i < queueLength; i = _uncheckedInc(i)) {
                 vaultBalance = IERC20Metadata(asset).balanceOf(address(this));
                 if (assets <= vaultBalance) {
                     break;
@@ -405,7 +406,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
      * @return assets - the amount of assets redeemed.
      */
     function redeem(uint256 shares, address receiver, address owner) public nonReentrant returns (uint256 assets) {
-        require(shares > 0, "please provide amount");
+        require(shares != 0, "please provide amount");
         assets = previewRedeem(shares);
         return _withdraw(assets, shares, receiver, owner);
     }
@@ -517,7 +518,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
         require(queueLength != 0);
 
         delete withdrawalQueue;
-        for (uint256 i = 0; i < queueLength; i++) {
+        for (uint256 i = 0; i < queueLength; i = _uncheckedInc(i)) {
             address strategy = _withdrawalQueue[i];
             StrategyParams storage params = strategies[strategy];
             require(params.activation != 0);
@@ -753,7 +754,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
     function _atLeastRole(bytes32 role) internal view {
         uint256 numRoles = cascadingAccess.length;
         uint256 specifiedRoleIndex;
-        for (uint256 i = 0; i < numRoles; i++) {
+        for (uint256 i = 0; i < numRoles; i = _uncheckedInc(i)) {
             if (role == cascadingAccess[i]) {
                 specifiedRoleIndex = i;
                 break;
@@ -762,12 +763,23 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
             }
         }
 
-        for (uint256 i = 0; i <= specifiedRoleIndex; i++) {
+        for (uint256 i = 0; i <= specifiedRoleIndex; i = _uncheckedInc(i)) {
             if (hasRole(cascadingAccess[i], msg.sender)) {
                 break;
             } else if (i == specifiedRoleIndex) {
                 revert();
             }
+        }
+    }
+
+    /**
+     * @notice For doing an unchecked increment of an index for gas optimization purposes
+     * @param i - The number to increment
+     * @return The incremented number
+     */
+    function _uncheckedInc(uint256 i) internal pure returns (uint256) {
+        unchecked {
+            return i + 1;
         }
     }
 }
