@@ -469,7 +469,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
      */
     function revokeStrategy(address strategy) external {
         if (!(msg.sender == strategy)) {
-            _atLeastRole(STRATEGIST);
+            _atLeastRole(GUARDIAN);
         }
         
         if (strategies[strategy].allocBPS == 0) {
