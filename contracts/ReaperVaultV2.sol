@@ -186,11 +186,11 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
      * @return maxAssets - the maximum depositable assets.
      */
     function maxDeposit(address receiver) public view returns (uint256) {
-        uint256 totalAssets = totalAssets();
-        if (totalAssets > tvlCap) {
+        uint256 _totalAssets = totalAssets();
+        if (_totalAssets > tvlCap) {
             return 0;
         }
-        return tvlCap - totalAssets;
+        return tvlCap - _totalAssets;
     }
 
     /**

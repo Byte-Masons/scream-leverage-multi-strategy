@@ -429,7 +429,6 @@ contract ReaperStrategyScreamLeverage is ReaperBaseStrategyv3 {
      * @dev Withdraws want to the strategy by redeeming the underlying
      */
     function _withdrawUnderlying(uint256 _withdrawAmount) internal {
-        uint256 initialWithdrawAmount = _withdrawAmount;
         uint256 supplied = cWant.balanceOfUnderlying(address(this));
         uint256 borrowed = cWant.borrowBalanceStored(address(this));
         uint256 realSupplied = supplied - borrowed;
