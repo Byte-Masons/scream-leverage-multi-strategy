@@ -46,13 +46,6 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
     uint256 public  lockedProfit; // how much profit is locked and cant be withdrawn
 
     /**
-     * @notice simple mappings used to determine PnL denominated in LP tokens,
-     * as well as keep a generalized history of a user's protocol usage.
-     */
-    mapping(address => uint256) public cumulativeDeposits;
-    mapping(address => uint256) public cumulativeWithdrawals;
-
-    /**
      * Reaper Roles in increasing order of privilege.
      * {STRATEGIST} - Role conferred to strategists, allows for tweaking non-critical params.
      * {GUARDIAN} - Multisig requiring 2 signatures for emergency measures such as pausing and panicking.
@@ -71,8 +64,6 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
     bytes32[] private cascadingAccess;
 
     event TvlCapUpdated(uint256 newTvlCap);
-    event DepositsIncremented(address user, uint256 amount, uint256 total);
-    event WithdrawalsIncremented(address user, uint256 amount, uint256 total);
     event LockedProfitDegradationUpdated(uint256 degradation);
     event StrategyReported(
         address indexed strategy,
@@ -236,7 +227,6 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
         IERC20Metadata(asset).safeTransferFrom(msg.sender, address(this), assets);
         
         _mint(receiver, shares);
-        incrementDeposits(assets, receiver);
         emit Deposit(msg.sender, receiver, assets, shares);
     }
 
@@ -279,7 +269,6 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
         IERC20Metadata(asset).safeTransferFrom(msg.sender, address(this), assets);
 
         _mint(receiver, shares);
-        incrementDeposits(assets, receiver);
         emit Deposit(msg.sender, receiver, assets, shares);
 
         return assets;
@@ -375,7 +364,6 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
         }
 
         IERC20Metadata(asset).safeTransfer(receiver, assets);
-        incrementWithdrawals(assets, owner);
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
         return assets;
     }
@@ -701,30 +689,6 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
         }
         emergencyShutdown = active;
         emit EmergencyShutdown(emergencyShutdown);
-    }
-
-    /**
-     * @notice Increases user's cumulative deposits.
-     * @param amount Number of tokens being deposited.
-     * @param receiver The receiver of the minted shares.
-     */
-    function incrementDeposits(uint256 amount, address receiver) internal {
-        uint256 initial = cumulativeDeposits[receiver];
-        uint256 newTotal = initial + amount;
-        cumulativeDeposits[receiver] = newTotal;
-        emit DepositsIncremented(receiver, amount, newTotal);
-    }
-
-    /**
-     * @notice increases user's cumulative withdrawals.
-     * @param amount number of tokens being withdrawn.
-     * @param owner The owner of the shares withdrawn.
-     */
-    function incrementWithdrawals(uint256 amount, address owner) internal {
-        uint256 initial = cumulativeWithdrawals[owner];
-        uint256 newTotal = initial + amount;
-        cumulativeWithdrawals[owner] = newTotal;
-        emit WithdrawalsIncremented(owner, amount, newTotal);
     }
 
     /**
