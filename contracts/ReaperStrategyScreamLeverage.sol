@@ -7,8 +7,6 @@ import "./interfaces/IComptroller.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 
-import "hardhat/console.sol";
-
 pragma solidity 0.8.11;
 
 /**

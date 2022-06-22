@@ -1,9 +1,9 @@
 const hre = require('hardhat');
 
 async function main() {
-  const vaultAddress = 'TODO';
+  const vaultAddress = '0xDFc089438B502a20516eA3515B722FbaEb853994';
 
-  const Strategy = await ethers.getContractFactory('ReaperStrategyTombMai');
+  const Strategy = await ethers.getContractFactory('ReaperStrategyScreamLeverage');
   const treasuryAddress = '0x0e7c5313E9BB80b654734d9b7aB1FB01468deE3b';
   const paymentSplitterAddress = '0x63cbd4134c2253041F370472c130e92daE4Ff174';
   const strategist1 = '0x1E71AEE6081f62053123140aacC7a06021D77348';
@@ -12,6 +12,7 @@ async function main() {
   const superAdmin = '0x04C710a1E8a738CDf7cAD3a52Ba77A784C35d8CE';
   const admin = '0x539eF36C804e4D735d8cAb69e8e441c12d4B88E0';
   const guardian = '0xf20E25f2AB644C8ecBFc992a6829478a85A98F2c';
+  const scWant = '0xb681F4928658a8d54bd4773F5B5DEAb35d63c3CF';
 
   const strategy = await hre.upgrades.deployProxy(
     Strategy,
@@ -20,6 +21,7 @@ async function main() {
       [treasuryAddress, paymentSplitterAddress],
       [strategist1, strategist2, strategist3],
       [superAdmin, admin, guardian],
+      scWant,
     ],
     {kind: 'uups', timeout: 0},
   );
