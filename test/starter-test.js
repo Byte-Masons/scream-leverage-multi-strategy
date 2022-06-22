@@ -599,7 +599,7 @@ describe('Vaults', function () {
       expect(mintedAssets).to.be.closeTo(redeemedAssets, allowedInaccuracy);
     });
 
-    it('should lock profits from harvests', async function () {
+    xit('should lock profits from harvests', async function () {
       const timeToSkip = 3600;
       const initialUserBalance = await want.balanceOf(wantHolderAddr);
       const depositAmount = initialUserBalance;
@@ -639,6 +639,45 @@ describe('Vaults', function () {
       console.log(`vaultBalance: ${vaultBalance}`);
       // All the profit should have been unlocked to allow a redeem of all assets
       expect(vaultBalance).to.equal(0);
+    });
+
+    it('mint and deposit are equivalent', async function () {
+      let mintAmount = toWantUnit('18');
+      let mintBalanceBefore = await vault.balanceOf(wantHolderAddr);
+      await vault.connect(wantHolder).mint(mintAmount, wantHolderAddr);
+      let mintBalanceAfter = await vault.balanceOf(wantHolderAddr);
+      let mintedShares = mintBalanceAfter.sub(mintBalanceBefore);
+      console.log(`mintedShares: ${mintedShares}`);
+
+      let depositAmount = toWantUnit('18');
+      let depositBalanceBefore = await vault.balanceOf(wantHolderAddr);
+      await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
+      let depositBalanceAfter = await vault.balanceOf(wantHolderAddr);
+      let depositedShares = depositBalanceAfter.sub(depositBalanceBefore);
+      console.log(`depositedShares: ${depositedShares}`);
+
+      expect(mintedShares).to.equal(depositedShares);
+
+      // Change the price per share
+      const transferAmount = toWantUnit('35782');
+      await want.connect(wantHolder).transfer(vault.address, transferAmount);
+
+      mintBalanceBefore = await vault.balanceOf(wantHolderAddr);
+      const userBalanceBefore = await want.balanceOf(wantHolderAddr);
+      await vault.connect(wantHolder).mint(mintAmount, wantHolderAddr);
+      const userBalanceAfter = await want.balanceOf(wantHolderAddr);
+      mintBalanceAfter = await vault.balanceOf(wantHolderAddr);
+      mintedShares = mintBalanceAfter.sub(mintBalanceBefore);
+      console.log(`mintedShares: ${mintedShares}`);
+
+      depositAmount = userBalanceBefore.sub(userBalanceAfter);
+      depositBalanceBefore = await vault.balanceOf(wantHolderAddr);
+      await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
+      depositBalanceAfter = await vault.balanceOf(wantHolderAddr);
+      depositedShares = depositBalanceAfter.sub(depositBalanceBefore);
+      console.log(`depositedShares: ${depositedShares}`);
+
+      expect(mintedShares).to.equal(depositedShares);
     });
   });
 
