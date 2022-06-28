@@ -2,15 +2,15 @@
   "manifestVersion": "3.2",
   "proxies": [
     {
-      "address": "0xBAA679454CCf84a456f47b7F52d816662135f2F5",
-      "txHash": "0x150cb416518a42473465084894f72677782fd3f7e9325ea08030e62f358403e7",
+      "address": "0xd2e77d311dDca106d64c61E8CCb258d37636dd68",
+      "txHash": "0x06ae788eb0cf84dae3e5f32cef1942004903a1e025692c92eb86bdd086e0190a",
       "kind": "uups"
     }
   ],
   "impls": {
-    "127387388f1c90000a9349b3c8ff3915800aa2aa4dd16dcbab62408d1c28794d": {
-      "address": "0x34de144C9476D5AE1aD1Ea86e0F140A0b14840aa",
-      "txHash": "0xebfdbf291ca0508cb84d6c08747728a54cd06b9e69db239fd509aa0cdb9263f8",
+    "959a0c7b7faa4e50c8fd16124ac2b19f6468b1a2f57d5459f21cc8e85bc58d03": {
+      "address": "0xf5c7F687509d02DC7AdC8cB24540f0347C5451c5",
+      "txHash": "0xbe47ce3bafef52ce504d65d70807f73a0a88010980ff46664551220f3f02226d",
       "layout": {
         "storage": [
           {
@@ -194,7 +194,7 @@
             "label": "cWant",
             "offset": 0,
             "slot": "312",
-            "type": "t_contract(CErc20I)10759",
+            "type": "t_contract(CErc20I)10789",
             "contract": "ReaperStrategyScreamLeverage",
             "src": "contracts\\ReaperStrategyScreamLeverage.sol:28"
           },
@@ -202,7 +202,7 @@
             "label": "comptroller",
             "offset": 0,
             "slot": "313",
-            "type": "t_contract(IComptroller)11105",
+            "type": "t_contract(IComptroller)11135",
             "contract": "ReaperStrategyScreamLeverage",
             "src": "contracts\\ReaperStrategyScreamLeverage.sol:36"
           },
@@ -212,7 +212,7 @@
             "slot": "314",
             "type": "t_array(t_address)dyn_storage",
             "contract": "ReaperStrategyScreamLeverage",
-            "src": "contracts\\ReaperStrategyScreamLeverage.sol:43"
+            "src": "contracts\\ReaperStrategyScreamLeverage.sol:44"
           },
           {
             "label": "wftmToWantRoute",
@@ -220,71 +220,79 @@
             "slot": "315",
             "type": "t_array(t_address)dyn_storage",
             "contract": "ReaperStrategyScreamLeverage",
-            "src": "contracts\\ReaperStrategyScreamLeverage.sol:44"
+            "src": "contracts\\ReaperStrategyScreamLeverage.sol:45"
           },
           {
-            "label": "markets",
+            "label": "wftmToDaiRoute",
             "offset": 0,
             "slot": "316",
             "type": "t_array(t_address)dyn_storage",
             "contract": "ReaperStrategyScreamLeverage",
-            "src": "contracts\\ReaperStrategyScreamLeverage.sol:52"
+            "src": "contracts\\ReaperStrategyScreamLeverage.sol:46"
+          },
+          {
+            "label": "markets",
+            "offset": 0,
+            "slot": "317",
+            "type": "t_array(t_address)dyn_storage",
+            "contract": "ReaperStrategyScreamLeverage",
+            "src": "contracts\\ReaperStrategyScreamLeverage.sol:54"
           },
           {
             "label": "targetLTV",
             "offset": 0,
-            "slot": "317",
-            "type": "t_uint256",
-            "contract": "ReaperStrategyScreamLeverage",
-            "src": "contracts\\ReaperStrategyScreamLeverage.sol:64"
-          },
-          {
-            "label": "allowedLTVDrift",
-            "offset": 0,
             "slot": "318",
-            "type": "t_uint256",
-            "contract": "ReaperStrategyScreamLeverage",
-            "src": "contracts\\ReaperStrategyScreamLeverage.sol:65"
-          },
-          {
-            "label": "balanceOfPool",
-            "offset": 0,
-            "slot": "319",
             "type": "t_uint256",
             "contract": "ReaperStrategyScreamLeverage",
             "src": "contracts\\ReaperStrategyScreamLeverage.sol:66"
           },
           {
-            "label": "borrowDepth",
+            "label": "allowedLTVDrift",
             "offset": 0,
-            "slot": "320",
+            "slot": "319",
             "type": "t_uint256",
             "contract": "ReaperStrategyScreamLeverage",
             "src": "contracts\\ReaperStrategyScreamLeverage.sol:67"
           },
           {
-            "label": "minWantToLeverage",
+            "label": "balanceOfPool",
             "offset": 0,
-            "slot": "321",
+            "slot": "320",
             "type": "t_uint256",
             "contract": "ReaperStrategyScreamLeverage",
             "src": "contracts\\ReaperStrategyScreamLeverage.sol:68"
           },
           {
-            "label": "maxBorrowDepth",
+            "label": "borrowDepth",
             "offset": 0,
-            "slot": "322",
+            "slot": "321",
             "type": "t_uint256",
             "contract": "ReaperStrategyScreamLeverage",
             "src": "contracts\\ReaperStrategyScreamLeverage.sol:69"
           },
           {
-            "label": "minScreamToSell",
+            "label": "minWantToLeverage",
+            "offset": 0,
+            "slot": "322",
+            "type": "t_uint256",
+            "contract": "ReaperStrategyScreamLeverage",
+            "src": "contracts\\ReaperStrategyScreamLeverage.sol:70"
+          },
+          {
+            "label": "maxBorrowDepth",
             "offset": 0,
             "slot": "323",
             "type": "t_uint256",
             "contract": "ReaperStrategyScreamLeverage",
-            "src": "contracts\\ReaperStrategyScreamLeverage.sol:70"
+            "src": "contracts\\ReaperStrategyScreamLeverage.sol:71"
+          },
+          {
+            "label": "minScreamToSell",
+            "offset": 0,
+            "slot": "324",
+            "type": "t_uint256",
+            "contract": "ReaperStrategyScreamLeverage",
+            "src": "contracts\\ReaperStrategyScreamLeverage.sol:72"
           }
         ],
         "types": {
@@ -316,11 +324,11 @@
             "label": "bytes32",
             "numberOfBytes": "32"
           },
-          "t_contract(CErc20I)10759": {
+          "t_contract(CErc20I)10789": {
             "label": "contract CErc20I",
             "numberOfBytes": "20"
           },
-          "t_contract(IComptroller)11105": {
+          "t_contract(IComptroller)11135": {
             "label": "contract IComptroller",
             "numberOfBytes": "20"
           },
