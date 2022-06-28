@@ -34,6 +34,7 @@ describe('Vaults', function () {
   let Want;
   let want;
   let wftm;
+  let dai;
 
   const treasuryAddr = '0x0e7c5313E9BB80b654734d9b7aB1FB01468deE3b';
   const paymentSplitterAddress = '0x63cbd4134c2253041F370472c130e92daE4Ff174';
@@ -43,6 +44,7 @@ describe('Vaults', function () {
   const guardianAddress = '0xf20E25f2AB644C8ecBFc992a6829478a85A98F2c';
   const maintainerAddress = '0x81876677843D00a7D792E1617459aC2E93202576';
   const wftmAddress = '0x21be370D5312f44cB42ce377BC9b8a0cEF1A4C83';
+  const daiAddress = '0x8D11eC38a3EB5E956B052f67Da8Bdc9bef8Abf3E';
   const wantAddress = wftmAddress;
   const scWant = '0xb681F4928658a8d54bd4773F5B5DEAb35d63c3CF';
 
@@ -137,6 +139,7 @@ describe('Vaults', function () {
     await vault.addStrategy(strategy.address, 9000);
     want = await Want.attach(wantAddress);
     wftm = await Want.attach(wftmAddress);
+    dai = await Want.attach(daiAddress);
 
     //approving LP token and vault share spend
     await want.connect(wantHolder).approve(vault.address, ethers.constants.MaxUint256);
@@ -814,11 +817,11 @@ describe('Vaults', function () {
       const predictedCallerFee = await readOnlyStrat.callStatic.harvest();
       console.log(`predicted caller fee ${ethers.utils.formatEther(predictedCallerFee)}`);
 
-      const wftmBalBefore = await wftm.balanceOf(owner.address);
+      const daiBalBefore = await dai.balanceOf(owner.address);
       await strategy.harvest();
-      const wftmBalAfter = await wftm.balanceOf(owner.address);
-      const wftmBalDifference = wftmBalAfter.sub(wftmBalBefore);
-      console.log(`actual caller fee ${ethers.utils.formatEther(wftmBalDifference)}`);
+      const daiBalAfter = await dai.balanceOf(owner.address);
+      const daiBalDifference = daiBalAfter.sub(daiBalBefore);
+      console.log(`actual caller fee ${ethers.utils.formatEther(daiBalDifference)}`);
     });
 
     it('should not change leverage on withdraw when still in the allowed LTV', async function () {

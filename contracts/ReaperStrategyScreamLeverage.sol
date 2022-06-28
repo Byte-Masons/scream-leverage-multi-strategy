@@ -19,12 +19,12 @@ contract ReaperStrategyScreamLeverage is ReaperBaseStrategyv3 {
      * @dev Tokens Used:
      * {WFTM} - Required for liquidity routing when doing swaps. Also used to charge fees on yield.
      * {SCREAM} - The reward token for farming
-     * {want} - The vault token the strategy is maximizing
+     * {DAI} - For charging fees
      * {cWant} - The Scream version of the want token
      */
     address public constant WFTM = 0x21be370D5312f44cB42ce377BC9b8a0cEF1A4C83;
     address public constant SCREAM = 0xe0654C8e6fd4D733349ac7E09f6f23DA256bF475;
-    // address public want;
+    address public constant DAI = 0x8D11eC38a3EB5E956B052f67Da8Bdc9bef8Abf3E;
     CErc20I public cWant;
 
     /**
@@ -39,10 +39,12 @@ contract ReaperStrategyScreamLeverage is ReaperBaseStrategyv3 {
      * @dev Routes we take to swap tokens
      * {screamToWftmRoute} - Route we take to get from {SCREAM} into {WFTM}.
      * {wftmToWantRoute} - Route we take to get from {WFTM} into {want}.
+     * {wftmToDaiRoute} - Route we take to get from {WFTM} into {DAI}.
      */
     address[] public screamToWftmRoute;
     address[] public wftmToWantRoute;
-
+    address[] public wftmToDaiRoute;
+    
     /**
      * @dev Scream variables
      * {markets} - Contains the Scream tokens to farm, used to enter markets and claim Scream
@@ -87,8 +89,9 @@ contract ReaperStrategyScreamLeverage is ReaperBaseStrategyv3 {
         markets = [_scWant];
         comptroller = IComptroller(cWant.comptroller());
         
-        wftmToWantRoute = [WFTM, want];
         screamToWftmRoute = [SCREAM, WFTM];
+        wftmToWantRoute = [WFTM, want];
+        wftmToDaiRoute = [WFTM, DAI];
 
         targetLTV = 0.47 ether;
         allowedLTVDrift = 0.01 ether;
@@ -148,10 +151,9 @@ contract ReaperStrategyScreamLeverage is ReaperBaseStrategyv3 {
     }
 
     function _liquidateAllPositions() internal override returns (uint256 amountFreed) {
-        // IMasterChef(TSHARE_REWARDS_POOL).emergencyWithdraw(poolId);
-        // return IERC20Upgradeable(want).balanceOf(address(this));
         _deleverage(type(uint256).max);
         _withdrawUnderlying(balanceOfPool);
+        return balanceOfWant();
     }
 
     /**
@@ -619,17 +621,7 @@ contract ReaperStrategyScreamLeverage is ReaperBaseStrategyv3 {
     function _swapRewardsToWftm() internal {
         uint256 screamBalance = IERC20Upgradeable(SCREAM).balanceOf(address(this));
         if (screamBalance >= minScreamToSell) {
-            IERC20Upgradeable(SCREAM).safeIncreaseAllowance(
-                UNI_ROUTER,
-                screamBalance
-            );
-            IUniswapV2Router02(UNI_ROUTER).swapExactTokensForTokensSupportingFeeOnTransferTokens(
-                screamBalance,
-                0,
-                screamToWftmRoute,
-                address(this),
-                block.timestamp + 600
-            );
+            _swap(screamBalance, screamToWftmRoute);
         }
     }
 
@@ -638,16 +630,40 @@ contract ReaperStrategyScreamLeverage is ReaperBaseStrategyv3 {
      * Charges fees based on the amount of WFTM gained from reward
      */
     function _chargeFees() internal returns (uint256 callerFee) {
-        uint256 wftmFee = (IERC20Upgradeable(WFTM).balanceOf(address(this)) * totalFee) / PERCENT_DIVISOR;
-        if (wftmFee != 0) {
-            callerFee = (wftmFee * callFee) / PERCENT_DIVISOR;
-            uint256 treasuryFeeToVault = (wftmFee * treasuryFee) / PERCENT_DIVISOR;
+        uint256 wftmFee = IERC20Upgradeable(WFTM).balanceOf(address(this)) * totalFee / PERCENT_DIVISOR;
+        _swap(wftmFee, wftmToDaiRoute);
+        
+        IERC20Upgradeable dai = IERC20Upgradeable(DAI);
+        uint256 daiFee = dai.balanceOf(address(this));
+        if (daiFee != 0) {
+            callerFee = (daiFee * callFee) / PERCENT_DIVISOR;
+            uint256 treasuryFeeToVault = (daiFee * treasuryFee) / PERCENT_DIVISOR;
             uint256 feeToStrategist = (treasuryFeeToVault * strategistFee) / PERCENT_DIVISOR;
             treasuryFeeToVault -= feeToStrategist;
 
-            IERC20Upgradeable(WFTM).safeTransfer(msg.sender, callerFee);
-            IERC20Upgradeable(WFTM).safeTransfer(treasury, treasuryFeeToVault);
-            IERC20Upgradeable(WFTM).safeTransfer(strategistRemitter, feeToStrategist);
+            dai.safeTransfer(msg.sender, callerFee);
+            dai.safeTransfer(treasury, treasuryFeeToVault);
+            dai.safeTransfer(strategistRemitter, feeToStrategist);
+        }
+    }
+
+    /**
+     * @dev Core harvest function.
+     * Swaps amount using path
+     */
+    function _swap(uint256 amount, address[] storage path) internal {
+        if (amount != 0) {
+            IERC20Upgradeable(path[0]).safeIncreaseAllowance(
+                UNI_ROUTER,
+                amount
+            );
+            IUniswapV2Router02(UNI_ROUTER).swapExactTokensForTokensSupportingFeeOnTransferTokens(
+                amount,
+                0,
+                path,
+                address(this),
+                block.timestamp + 600
+            );
         }
     }
 
@@ -659,21 +675,8 @@ contract ReaperStrategyScreamLeverage is ReaperBaseStrategyv3 {
         if (want == WFTM) {
             return;
         }
-        
         uint256 wftmBalance = IERC20Upgradeable(WFTM).balanceOf(address(this));
-        if (wftmBalance != 0) {
-            IERC20Upgradeable(WFTM).safeIncreaseAllowance(
-                UNI_ROUTER,
-                wftmBalance
-            );
-            IUniswapV2Router02(UNI_ROUTER).swapExactTokensForTokensSupportingFeeOnTransferTokens(
-                wftmBalance,
-                0,
-                wftmToWantRoute,
-                address(this),
-                block.timestamp + 600
-            );
-        }
+        _swap(wftmBalance, wftmToWantRoute);
     }
 
     /**
