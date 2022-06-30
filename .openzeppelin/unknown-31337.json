@@ -8,9 +8,9 @@
     }
   ],
   "impls": {
-    "a59d7ad45685b900e5d463a38c72689b27e2073384560e9ed392ded8db9eed2a": {
+    "959a0c7b7faa4e50c8fd16124ac2b19f6468b1a2f57d5459f21cc8e85bc58d03": {
       "address": "0x36b58F5C1969B7b6591D752ea6F5486D069010AB",
-      "txHash": "0xedb89c09796d892ed854f098b255b73f22472de5eeb5bf58f4dcc49a4761baa4",
+      "txHash": "0x9e0bad2ab781e4783b156f62501d9d336902d7bb0e8a36a7c6638824655e6b72",
       "layout": {
         "storage": [
           {
@@ -194,7 +194,7 @@
             "label": "cWant",
             "offset": 0,
             "slot": "312",
-            "type": "t_contract(CErc20I)10790",
+            "type": "t_contract(CErc20I)10789",
             "contract": "ReaperStrategyScreamLeverage",
             "src": "contracts\\ReaperStrategyScreamLeverage.sol:28"
           },
@@ -202,7 +202,7 @@
             "label": "comptroller",
             "offset": 0,
             "slot": "313",
-            "type": "t_contract(IComptroller)11136",
+            "type": "t_contract(IComptroller)11135",
             "contract": "ReaperStrategyScreamLeverage",
             "src": "contracts\\ReaperStrategyScreamLeverage.sol:36"
           },
@@ -212,7 +212,7 @@
             "slot": "314",
             "type": "t_array(t_address)dyn_storage",
             "contract": "ReaperStrategyScreamLeverage",
-            "src": "contracts\\ReaperStrategyScreamLeverage.sol:43"
+            "src": "contracts\\ReaperStrategyScreamLeverage.sol:44"
           },
           {
             "label": "wftmToWantRoute",
@@ -220,79 +220,79 @@
             "slot": "315",
             "type": "t_array(t_address)dyn_storage",
             "contract": "ReaperStrategyScreamLeverage",
-            "src": "contracts\\ReaperStrategyScreamLeverage.sol:44"
+            "src": "contracts\\ReaperStrategyScreamLeverage.sol:45"
           },
           {
-            "label": "markets",
+            "label": "wftmToDaiRoute",
             "offset": 0,
             "slot": "316",
             "type": "t_array(t_address)dyn_storage",
             "contract": "ReaperStrategyScreamLeverage",
-            "src": "contracts\\ReaperStrategyScreamLeverage.sol:52"
+            "src": "contracts\\ReaperStrategyScreamLeverage.sol:46"
+          },
+          {
+            "label": "markets",
+            "offset": 0,
+            "slot": "317",
+            "type": "t_array(t_address)dyn_storage",
+            "contract": "ReaperStrategyScreamLeverage",
+            "src": "contracts\\ReaperStrategyScreamLeverage.sol:54"
           },
           {
             "label": "targetLTV",
             "offset": 0,
-            "slot": "317",
-            "type": "t_uint256",
-            "contract": "ReaperStrategyScreamLeverage",
-            "src": "contracts\\ReaperStrategyScreamLeverage.sol:64"
-          },
-          {
-            "label": "allowedLTVDrift",
-            "offset": 0,
             "slot": "318",
-            "type": "t_uint256",
-            "contract": "ReaperStrategyScreamLeverage",
-            "src": "contracts\\ReaperStrategyScreamLeverage.sol:65"
-          },
-          {
-            "label": "balanceOfPool",
-            "offset": 0,
-            "slot": "319",
             "type": "t_uint256",
             "contract": "ReaperStrategyScreamLeverage",
             "src": "contracts\\ReaperStrategyScreamLeverage.sol:66"
           },
           {
-            "label": "borrowDepth",
+            "label": "allowedLTVDrift",
             "offset": 0,
-            "slot": "320",
+            "slot": "319",
             "type": "t_uint256",
             "contract": "ReaperStrategyScreamLeverage",
             "src": "contracts\\ReaperStrategyScreamLeverage.sol:67"
           },
           {
-            "label": "minWantToLeverage",
+            "label": "balanceOfPool",
             "offset": 0,
-            "slot": "321",
+            "slot": "320",
             "type": "t_uint256",
             "contract": "ReaperStrategyScreamLeverage",
             "src": "contracts\\ReaperStrategyScreamLeverage.sol:68"
           },
           {
-            "label": "maxBorrowDepth",
+            "label": "borrowDepth",
             "offset": 0,
-            "slot": "322",
+            "slot": "321",
             "type": "t_uint256",
             "contract": "ReaperStrategyScreamLeverage",
             "src": "contracts\\ReaperStrategyScreamLeverage.sol:69"
           },
           {
-            "label": "minScreamToSell",
+            "label": "minWantToLeverage",
             "offset": 0,
-            "slot": "323",
+            "slot": "322",
             "type": "t_uint256",
             "contract": "ReaperStrategyScreamLeverage",
             "src": "contracts\\ReaperStrategyScreamLeverage.sol:70"
           },
           {
-            "label": "wftmToDaiRoute",
+            "label": "maxBorrowDepth",
+            "offset": 0,
+            "slot": "323",
+            "type": "t_uint256",
+            "contract": "ReaperStrategyScreamLeverage",
+            "src": "contracts\\ReaperStrategyScreamLeverage.sol:71"
+          },
+          {
+            "label": "minScreamToSell",
             "offset": 0,
             "slot": "324",
-            "type": "t_array(t_address)dyn_storage",
+            "type": "t_uint256",
             "contract": "ReaperStrategyScreamLeverage",
-            "src": "contracts\\ReaperStrategyScreamLeverage.sol:76"
+            "src": "contracts\\ReaperStrategyScreamLeverage.sol:72"
           }
         ],
         "types": {
@@ -324,11 +324,11 @@
             "label": "bytes32",
             "numberOfBytes": "32"
           },
-          "t_contract(CErc20I)10790": {
+          "t_contract(CErc20I)10789": {
             "label": "contract CErc20I",
             "numberOfBytes": "20"
           },
-          "t_contract(IComptroller)11136": {
+          "t_contract(IComptroller)11135": {
             "label": "contract IComptroller",
             "numberOfBytes": "20"
           },
