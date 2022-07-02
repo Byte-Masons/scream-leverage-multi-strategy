@@ -8,9 +8,9 @@
     }
   ],
   "impls": {
-    "5fae79b570a93c1e568115a96cb95f3aba86cd08c15dcff027b48d2f75be06be": {
+    "b816a4458c8f734e212d8f117b9da906f07d0dbf576ccd9dfc3b547956ff8d54": {
       "address": "0x36b58F5C1969B7b6591D752ea6F5486D069010AB",
-      "txHash": "0x6a3a21caf95be30a98dd70ef099300169cd67785ebc33efa26e9a6fc17591567",
+      "txHash": "0x1eda742d25ebe01533881eae83d11f221b86a4bc8b83f55cded9d9edc8d7b86b",
       "layout": {
         "storage": [
           {
@@ -99,96 +99,96 @@
             "offset": 0,
             "slot": "301",
             "type": "t_address",
-            "contract": "ReaperBaseStrategyv4",
-            "src": "contracts\\abstract\\ReaperBaseStrategyv4.sol:20"
+            "contract": "ReaperBaseStrategyv3",
+            "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:20"
           },
           {
             "label": "emergencyExit",
             "offset": 20,
             "slot": "301",
             "type": "t_bool",
-            "contract": "ReaperBaseStrategyv4",
-            "src": "contracts\\abstract\\ReaperBaseStrategyv4.sol:23"
+            "contract": "ReaperBaseStrategyv3",
+            "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:23"
           },
           {
             "label": "lastHarvestTimestamp",
             "offset": 0,
             "slot": "302",
             "type": "t_uint256",
-            "contract": "ReaperBaseStrategyv4",
-            "src": "contracts\\abstract\\ReaperBaseStrategyv4.sol:24"
+            "contract": "ReaperBaseStrategyv3",
+            "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:24"
           },
           {
             "label": "upgradeProposalTime",
             "offset": 0,
             "slot": "303",
             "type": "t_uint256",
-            "contract": "ReaperBaseStrategyv4",
-            "src": "contracts\\abstract\\ReaperBaseStrategyv4.sol:25"
+            "contract": "ReaperBaseStrategyv3",
+            "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:25"
           },
           {
             "label": "cascadingAccess",
             "offset": 0,
             "slot": "304",
             "type": "t_array(t_bytes32)dyn_storage",
-            "contract": "ReaperBaseStrategyv4",
-            "src": "contracts\\abstract\\ReaperBaseStrategyv4.sol:45"
+            "contract": "ReaperBaseStrategyv3",
+            "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:45"
           },
           {
             "label": "treasury",
             "offset": 0,
             "slot": "305",
             "type": "t_address",
-            "contract": "ReaperBaseStrategyv4",
-            "src": "contracts\\abstract\\ReaperBaseStrategyv4.sol:53"
+            "contract": "ReaperBaseStrategyv3",
+            "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:53"
           },
           {
             "label": "vault",
             "offset": 0,
             "slot": "306",
             "type": "t_address",
-            "contract": "ReaperBaseStrategyv4",
-            "src": "contracts\\abstract\\ReaperBaseStrategyv4.sol:54"
+            "contract": "ReaperBaseStrategyv3",
+            "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:54"
           },
           {
             "label": "strategistRemitter",
             "offset": 0,
             "slot": "307",
             "type": "t_address",
-            "contract": "ReaperBaseStrategyv4",
-            "src": "contracts\\abstract\\ReaperBaseStrategyv4.sol:55"
+            "contract": "ReaperBaseStrategyv3",
+            "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:55"
           },
           {
             "label": "totalFee",
             "offset": 0,
             "slot": "308",
             "type": "t_uint256",
-            "contract": "ReaperBaseStrategyv4",
-            "src": "contracts\\abstract\\ReaperBaseStrategyv4.sol:75"
+            "contract": "ReaperBaseStrategyv3",
+            "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:75"
           },
           {
             "label": "callFee",
             "offset": 0,
             "slot": "309",
             "type": "t_uint256",
-            "contract": "ReaperBaseStrategyv4",
-            "src": "contracts\\abstract\\ReaperBaseStrategyv4.sol:76"
+            "contract": "ReaperBaseStrategyv3",
+            "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:76"
           },
           {
             "label": "treasuryFee",
             "offset": 0,
             "slot": "310",
             "type": "t_uint256",
-            "contract": "ReaperBaseStrategyv4",
-            "src": "contracts\\abstract\\ReaperBaseStrategyv4.sol:77"
+            "contract": "ReaperBaseStrategyv3",
+            "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:77"
           },
           {
             "label": "strategistFee",
             "offset": 0,
             "slot": "311",
             "type": "t_uint256",
-            "contract": "ReaperBaseStrategyv4",
-            "src": "contracts\\abstract\\ReaperBaseStrategyv4.sol:78"
+            "contract": "ReaperBaseStrategyv3",
+            "src": "contracts\\abstract\\ReaperBaseStrategyv3.sol:78"
           },
           {
             "label": "cWant",
