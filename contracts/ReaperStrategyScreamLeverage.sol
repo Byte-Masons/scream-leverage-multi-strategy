@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-import "./abstract/ReaperBaseStrategyv3.sol";
+import "./abstract/ReaperBaseStrategyv4.sol";
 import "./interfaces/IUniswapV2Router02.sol";
 import "./interfaces/CErc20I.sol";
 import "./interfaces/IComptroller.sol";
@@ -12,7 +12,7 @@ pragma solidity 0.8.11;
 /**
  * @dev This strategy will deposit and leverage a token on Scream to maximize yield by farming Scream tokens
  */
-contract ReaperStrategyScreamLeverage is ReaperBaseStrategyv3 {
+contract ReaperStrategyScreamLeverage is ReaperBaseStrategyv4 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     /**
