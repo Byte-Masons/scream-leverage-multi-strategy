@@ -60,8 +60,10 @@ contract ReaperStrategyScreamLeverage is ReaperBaseStrategyv4 {
      * {targetLTV} - The target loan to value for the strategy where 1 ether = 100%
      * {allowedLTVDrift} - How much the strategy can deviate from the target ltv where 0.01 ether = 1%
      * {balanceOfPool} - The total balance deposited into Scream (supplied - borrowed)
-     * {borrowDepth} - The maximum amount of loops used to leverage and deleverage
      * {minWantToLeverage} - The minimum amount of want to leverage in a loop
+     * {borrowDepth} - The maximum amount of loops used to leverage and deleverage
+     * {minScreamToSell} - The minimum amount of scream to swap to wftm
+     * {minWftmToSell} - The minimum amount of wftm to swap to want
      */
     uint256 public targetLTV;
     uint256 public allowedLTVDrift;
@@ -70,6 +72,7 @@ contract ReaperStrategyScreamLeverage is ReaperBaseStrategyv4 {
     uint256 public minWantToLeverage;
     uint256 public maxBorrowDepth;
     uint256 public minScreamToSell;
+    uint256 public minWftmToSell;
 
     /**
      * @dev Initializes the strategy. Sets parameters, saves routes, and gives allowances.
@@ -93,13 +96,14 @@ contract ReaperStrategyScreamLeverage is ReaperBaseStrategyv4 {
         wftmToWantRoute = [WFTM, want];
         wftmToDaiRoute = [WFTM, DAI];
 
-        targetLTV = 0.47 ether;
+        targetLTV = 0.67 ether;
         allowedLTVDrift = 0.01 ether;
         balanceOfPool = 0;
         borrowDepth = 12;
         minWantToLeverage = 1000;
         maxBorrowDepth = 15;
         minScreamToSell = 1000;
+        minWftmToSell = 414 * 1e10;
 
         comptroller.enterMarkets(markets);
     }
@@ -248,13 +252,20 @@ contract ReaperStrategyScreamLeverage is ReaperBaseStrategyv4 {
     }
 
     /**
-     * @dev Sets the minimum reward the will be sold (too little causes revert from Uniswap)
+     * @dev Sets the minimum reward that will be sold (too little causes revert from Uniswap)
      */
     function setMinScreamToSell(uint256 _minScreamToSell) external {
         _atLeastRole(STRATEGIST);
         minScreamToSell = _minScreamToSell;
     }
 
+    /**
+     * @dev Sets the minimum wftm that will be sold (too little causes revert from Uniswap)
+     */
+    function setMinWftmToSell(uint256 _minWftmToSell) external {
+        _atLeastRole(STRATEGIST);
+        minWftmToSell = _minWftmToSell;
+    }
 
     /**
      * @dev Sets the minimum want to leverage/deleverage (loop) for
@@ -671,7 +682,10 @@ contract ReaperStrategyScreamLeverage is ReaperBaseStrategyv4 {
             return;
         }
         uint256 wftmBalance = IERC20Upgradeable(WFTM).balanceOf(address(this));
-        _swap(wftmBalance, wftmToWantRoute);
+        if (wftmBalance >= minWftmToSell) {
+            _swap(wftmBalance, wftmToWantRoute);
+            uint256 wantBalance = IERC20Upgradeable(want).balanceOf(address(this));
+        }
     }
 
     /**
