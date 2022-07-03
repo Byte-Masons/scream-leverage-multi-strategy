@@ -1,10 +1,10 @@
 async function main() {
   const Vault = await ethers.getContractFactory('ReaperVaultV2');
 
-  const wantAddress = '0x21be370D5312f44cB42ce377BC9b8a0cEF1A4C83';
-  const tokenName = 'WFTM Crypt';
-  const tokenSymbol = 'rfWFTM';
-  const tvlCap = ethers.utils.parseEther('1000');
+  const wantAddress = '0x74b23882a30290451A17c44f4F05243b6b58C76d';
+  const tokenName = 'ETH Crypt';
+  const tokenSymbol = 'rfETH';
+  const tvlCap = ethers.utils.parseEther('1');
 
   const strategist1 = '0x1E71AEE6081f62053123140aacC7a06021D77348';
   const strategist2 = '0x81876677843D00a7D792E1617459aC2E93202576';
