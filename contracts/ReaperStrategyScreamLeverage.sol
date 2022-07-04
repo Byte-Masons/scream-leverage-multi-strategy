@@ -576,8 +576,10 @@ contract ReaperStrategyScreamLeverage is ReaperBaseStrategyv3 {
         )
     {
         _claimRewards();
+        uint256 wftmBalanceBefore = IERC20Upgradeable(WFTM).balanceOf(address(this));
         _swapRewardsToWftm();
-        callerFee = _chargeFees();
+        uint256 wftmBalanceAfter = IERC20Upgradeable(WFTM).balanceOf(address(this));
+        callerFee = _chargeFees(wftmBalanceAfter - wftmBalanceBefore);
         _swapToWant();
         
         uint256 allocated = IVault(vault).strategies(address(this)).allocated;
@@ -624,8 +626,8 @@ contract ReaperStrategyScreamLeverage is ReaperBaseStrategyv3 {
      * @dev Core harvest function.
      * Charges fees based on the amount of WFTM gained from reward
      */
-    function _chargeFees() internal returns (uint256 callerFee) {
-        uint256 wftmFee = IERC20Upgradeable(WFTM).balanceOf(address(this)) * totalFee / PERCENT_DIVISOR;
+    function _chargeFees(uint256 wftmHarvested) internal returns (uint256 callerFee) {
+        uint256 wftmFee = wftmHarvested * totalFee / PERCENT_DIVISOR;
         _swap(wftmFee, wftmToDaiRoute);
         
         IERC20Upgradeable dai = IERC20Upgradeable(DAI);
