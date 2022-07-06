@@ -45,10 +45,10 @@ describe('Vaults', function () {
   const maintainerAddress = '0x81876677843D00a7D792E1617459aC2E93202576';
   const wftmAddress = '0x21be370D5312f44cB42ce377BC9b8a0cEF1A4C83';
   const daiAddress = '0x8D11eC38a3EB5E956B052f67Da8Bdc9bef8Abf3E';
-  const wantAddress = wftmAddress;
-  const scWant = '0xb681F4928658a8d54bd4773F5B5DEAb35d63c3CF';
+  const wantAddress = '0x8D11eC38a3EB5E956B052f67Da8Bdc9bef8Abf3E';
+  const scWant = '0x4FE2eA6a1985515259C0e06D348FE8b0c1F9e049';
 
-  const wantHolderAddr = '0x431e81e5dfb5a24541b5ff8762bdef3f32f96354';
+  const wantHolderAddr = '0x4188663a85C92EEa35b5AD3AA5cA7CeB237C6fe9';
   const strategistAddr = '0x1A20D7A31e5B3Bc5f02c8A146EF6f394502a10c4';
 
   let owner;
@@ -70,7 +70,7 @@ describe('Vaults', function () {
         {
           forking: {
             jsonRpcUrl: 'https://rpcapi-tracing.fantom.network/',
-            blockNumber: 40582443,
+            blockNumber: 42160600,
           },
         },
       ],

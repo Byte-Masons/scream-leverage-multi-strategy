@@ -102,8 +102,8 @@ abstract contract ReaperBaseStrategyv4 is IStrategy, UUPSUpgradeable, AccessCont
         __AccessControlEnumerable_init();
 
         totalFee = 450;
-        callFee = 1000;
-        treasuryFee = 9000;
+        callFee = 0;
+        treasuryFee = 10000;
         strategistFee = 2500;
 
         vault = _vault;

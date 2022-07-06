@@ -93,7 +93,7 @@ contract ReaperStrategyScreamLeverage is ReaperBaseStrategyv4 {
         wftmToWantRoute = [WFTM, want];
         wftmToDaiRoute = [WFTM, DAI];
 
-        targetLTV = 0.47 ether;
+        targetLTV = 0.67 ether;
         allowedLTVDrift = 0.01 ether;
         balanceOfPool = 0;
         borrowDepth = 12;
@@ -626,10 +626,13 @@ contract ReaperStrategyScreamLeverage is ReaperBaseStrategyv4 {
      */
     function _chargeFees() internal returns (uint256 callerFee) {
         uint256 wftmFee = IERC20Upgradeable(WFTM).balanceOf(address(this)) * totalFee / PERCENT_DIVISOR;
-        _swap(wftmFee, wftmToDaiRoute);
-        
+
         IERC20Upgradeable dai = IERC20Upgradeable(DAI);
-        uint256 daiFee = dai.balanceOf(address(this));
+        uint256 daiBalanceBefore = dai.balanceOf(address(this));
+        _swap(wftmFee, wftmToDaiRoute);
+        uint256 daiBalanceAfter = dai.balanceOf(address(this));
+        
+        uint256 daiFee = daiBalanceAfter - daiBalanceBefore;
         if (daiFee != 0) {
             callerFee = (daiFee * callFee) / PERCENT_DIVISOR;
             uint256 treasuryFeeToVault = (daiFee * treasuryFee) / PERCENT_DIVISOR;
