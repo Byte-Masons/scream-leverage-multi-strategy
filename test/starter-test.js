@@ -146,7 +146,7 @@ describe('Vaults', function () {
     allowedLTVDrift = await strategy.allowedLTVDrift();
   });
 
-  xdescribe('Deploying the vault and strategy', function () {
+  describe('Deploying the vault and strategy', function () {
     it('should initiate vault with a 0 balance', async function () {
       const assets = ethers.utils.parseEther('1');
       const totalBalance = await vault.totalAssets();
@@ -248,7 +248,7 @@ describe('Vaults', function () {
     });
   });
 
-  xdescribe('Vault Tests', function () {
+  describe('Vault Tests', function () {
     it('should allow deposits and account for them correctly', async function () {
       const userBalance = await want.balanceOf(wantHolderAddr);
       const vaultBalance = await vault.totalAssets();
@@ -683,7 +683,7 @@ describe('Vaults', function () {
   });
 
   describe('Strategy', function () {
-    xit('should allow deposits and account for them correctly', async function () {
+    it('should allow deposits and account for them correctly', async function () {
       const userBalance = await want.balanceOf(wantHolderAddr);
       const vaultBalance = await vault.totalAssets();
       const depositAmount = toWantUnit('10');
@@ -710,7 +710,7 @@ describe('Vaults', function () {
       expect(ltv).to.be.closeTo(targetLTV, allowedLTVDrift);
     });
 
-    xit('should trigger deleveraging on deposit when LTV is too high', async function () {
+    it('should trigger deleveraging on deposit when LTV is too high', async function () {
       const depositAmount = toWantUnit('100');
       await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
       await strategy.harvest();
@@ -725,7 +725,7 @@ describe('Vaults', function () {
       expect(ltvAfter).to.be.closeTo(newLTV, allowedLTVDrift);
     });
 
-    xit('should not change leverage when LTV is within the allowed drift on deposit', async function () {
+    it('should not change leverage when LTV is within the allowed drift on deposit', async function () {
       const depositAmount = toWantUnit('100');
       await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
       await strategy.harvest();
@@ -738,7 +738,7 @@ describe('Vaults', function () {
       expect(ltvAfter).to.be.closeTo(targetLTV, allowedLTVDrift);
     });
 
-    xit('should allow withdrawals', async function () {
+    it('should allow withdrawals', async function () {
       const userBalance = await want.balanceOf(wantHolderAddr);
       const depositAmount = toWantUnit('100');
       let tx = await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
@@ -762,7 +762,7 @@ describe('Vaults', function () {
       expect(isSmallBalanceDifference).to.equal(true);
     });
 
-    xit('should trigger leveraging on withdraw when LTV is too low', async function () {
+    it('should trigger leveraging on withdraw when LTV is too low', async function () {
       const startingLTV = toWantUnit('0.4');
       await strategy.setTargetLtv(startingLTV);
       const depositAmount = toWantUnit('100');
@@ -786,7 +786,7 @@ describe('Vaults', function () {
       expect(userBalanceAfterWithdraw).to.be.closeTo(expectedBalance, toWantUnit('0.00001'));
     });
 
-    xit('should trigger deleveraging on withdraw when LTV is too high', async function () {
+    it('should trigger deleveraging on withdraw when LTV is too high', async function () {
       const depositAmount = toWantUnit('100');
       await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
       await strategy.harvest();
@@ -807,7 +807,7 @@ describe('Vaults', function () {
       expect(userBalanceAfterWithdraw).to.be.closeTo(expectedBalance, toWantUnit('0.00001'));
     });
 
-    xit('should be able to harvest', async function () {
+    it('should be able to harvest', async function () {
       await vault.connect(wantHolder).deposit(toWantUnit('1000'), wantHolderAddr);
       await strategy.harvest();
       await moveTimeForward(3600);
@@ -822,7 +822,7 @@ describe('Vaults', function () {
       console.log(`actual caller fee ${ethers.utils.formatEther(daiBalDifference)}`);
     });
 
-    xit('should not change leverage on withdraw when still in the allowed LTV', async function () {
+    it('should not change leverage on withdraw when still in the allowed LTV', async function () {
       const depositAmount = toWantUnit('100');
       await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
       await strategy.harvest();
@@ -842,7 +842,7 @@ describe('Vaults', function () {
       expect(userBalanceAfterWithdraw).to.be.closeTo(expectedBalance, toWantUnit('0.00001'));
     });
 
-    xit('should handle small deposit + withdraw', async function () {
+    it('should handle small deposit + withdraw', async function () {
       const userBalance = await want.balanceOf(wantHolderAddr);
       const depositAmount = toWantUnit('0.1');
 
@@ -861,7 +861,7 @@ describe('Vaults', function () {
       expect(isSmallBalanceDifference).to.equal(true);
     });
 
-    xit('should provide yield', async function () {
+    it('should provide yield', async function () {
       const timeToSkip = 360;
       const initialUserBalance = await want.balanceOf(wantHolderAddr);
       const depositAmount = initialUserBalance.div(10);
@@ -882,7 +882,7 @@ describe('Vaults', function () {
   });
 
   describe('Vault<>Strat accounting', function () {
-    xit('Strat gets more money when it flows in', async function () {
+    it('Strat gets more money when it flows in', async function () {
       await vault.connect(wantHolder).deposit(toWantUnit('500'), wantHolderAddr);
       await strategy.harvest();
       await moveTimeForward(3600);
@@ -909,7 +909,7 @@ describe('Vaults', function () {
       expect(isSmallBalanceDifference).to.equal(true);
     });
 
-    xit('Vault pulls funds from strat as needed', async function () {
+    it('Vault pulls funds from strat as needed', async function () {
       await vault.connect(wantHolder).deposit(toWantUnit('1000'), wantHolderAddr);
       await strategy.harvest();
       await moveTimeForward(3600);
@@ -946,7 +946,7 @@ describe('Vaults', function () {
   });
 
   describe('Emergency scenarios', function () {
-    xit('Vault should handle emergency shutdown', async function () {
+    it('Vault should handle emergency shutdown', async function () {
       await vault.connect(wantHolder).deposit(toWantUnit('1000'), wantHolderAddr);
       await strategy.harvest();
       await moveTimeForward(3600);
