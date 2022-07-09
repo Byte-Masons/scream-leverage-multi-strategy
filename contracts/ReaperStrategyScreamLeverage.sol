@@ -151,7 +151,10 @@ contract ReaperStrategyScreamLeverage is ReaperBaseStrategyv4 {
         } else {
             liquidatedAmount = _amountNeeded;
         }
-        loss = _amountNeeded - liquidatedAmount;
+        
+        if (_amountNeeded > liquidatedAmount) {
+            loss = _amountNeeded - liquidatedAmount;
+        }
     }
 
     function _liquidateAllPositions() internal override returns (uint256 amountFreed) {
